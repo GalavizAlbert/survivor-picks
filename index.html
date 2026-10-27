@@ -292,7 +292,31 @@ const scNflNames={
 };
 const scNflLookup={};for(const [code,names] of Object.entries(scNflNames)){for(const name of [code,...names])scNflLookup[scNorm(name)]=code;}
 function scNflCode(team,league){const key=scNorm(team);if(scNflLookup[key])return scNflLookup[key];return ''}
-function scCrest(team,league){const nfl=scNflCode(team,league);if(nfl)return SC_NFL_LOGO_BASE+encodeURIComponent(nfl)+'.png';const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
+// Liga MX crests from the user's FURY SPORTS ANALYTICS GitHub repository.
+const SC_LIGAMX_BASE='https://raw.githubusercontent.com/GalavizAlbert/FURY-SPORTS-ANALYTICS/main/assets/teams/Liga%20MX/';
+const scLigaMxTeams={
+ 'America.png':['america','club america','america mexico','cf america','aguilas','las aguilas'],
+ 'atlante.png':['atlante','atlante fc'],
+ 'atlas.png':['atlas','atlas fc','club atlas'],
+ 'atletico-de-san-luis.png':['atletico de san luis','atletico san luis','san luis','atletico de san luis fc'],
+ 'Chivas Guadalajara.png':['chivas','guadalajara','chivas guadalajara','cd guadalajara','club deportivo guadalajara'],
+ 'cruz-azul.png':['cruz azul','cruz azul fc'],
+ 'Juarez.png':['juarez','fc juarez','bravos','bravos de juarez'],
+ 'Leon.png':['leon','club leon','fc leon'],
+ 'Monterrey.png':['monterrey','rayados','cf monterrey','club de futbol monterrey'],
+ 'Necaxa.png':['necaxa','club necaxa'],
+ 'Pachuca.png':['pachuca','cf pachuca','tuzos'],
+ 'Puebla.png':['puebla','club puebla','puebla fc'],
+ 'Pumas UNAM.png':['pumas','pumas unam','unam','club universidad nacional'],
+ 'Queretaro.png':['queretaro','queretaro fc','gallos blancos'],
+ 'Santos.png':['santos','santos laguna','club santos laguna'],
+ 'Tigres.png':['tigres','tigres uanl','uanl','club tigres'],
+ 'Tijuana.png':['tijuana','club tijuana','xolos','xolos de tijuana'],
+ 'Toluca.png':['toluca','deportivo toluca','deportivo toluca fc']
+};
+const scLigaMxLookup={};for(const [file,names] of Object.entries(scLigaMxTeams)){for(const name of names)scLigaMxLookup[scNorm(name)]=file;}
+function scLigaMxCrest(team,league){const file=scLigaMxLookup[scNorm(team)];const leagueKey=scNorm(league);if(!file)return '';if(leagueKey.includes('liga mx')||leagueKey.includes('soccer otro')||!leagueKey)return SC_LIGAMX_BASE+encodeURIComponent(file);return '';}
+function scCrest(team,league){const mx=scLigaMxCrest(team,league);if(mx)return mx;const nfl=scNflCode(team,league);if(nfl)return SC_NFL_LOGO_BASE+encodeURIComponent(nfl)+'.png';const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
  for(const [l,records] of [...pools,...Object.entries(scLogoCatalog).filter(([l])=>l!==lg)]){const aliases=scLogoAliases[l]||{};const alias=aliases[key]||aliases[key.replace(/ /g,'')];const rec=alias&&records[String(alias)];if(rec?.logo)return rec.logo;for(const item of Object.values(records)){if([item.name,item.shortName,item.tla].some(n=>scNorm(n)===key))return item.logo||item.crest_source||''}}
  const id=override?.id||scCommon[key];return id?'https://crests.football-data.org/'+encodeURIComponent(id)+'.png':'';
 }
