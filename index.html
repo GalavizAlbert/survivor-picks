@@ -320,7 +320,7 @@ const scCommon={
  'newcastle':67,'newcastle united':67,'aston villa':58,'west ham':563,'everton':62,
  'bayern munich':5,'bayern munchen':5,'borussia dortmund':4,'bayer leverkusen':3,
  'rb leipzig':721,'juventus':109,'inter milan':108,'inter':108,'ac milan':98,
- 'napoli':113,'roma':100,'as roma':100,'psg':524,'paris saint germain':524,
+ 'napoli':113,'roma':100,'as roma':100,'lazio':110,'ss lazio':110,'s s lazio':110,'societa sportiva lazio':110,'cagliari':104,'cagliari calcio':104,'cagliari calcio 1920':104,'psg':524,'paris saint germain':524,
  'marseille':516,'ajax':678,'psv':674,'feyenoord':675,'benfica':1903,'porto':503,'sporting cp':498
 };
 const scLeague=x=>{const k=scNorm(x);if(k.includes('premier'))return 'premier_league';if(k.includes('la liga'))return 'la_liga';if(k.includes('bundesliga'))return 'bundesliga';if(k.includes('serie a'))return 'serie_a';if(k.includes('ligue 1'))return 'ligue_1';if(k.includes('champions'))return 'champions_league';return ''};
@@ -355,14 +355,16 @@ const scLigaMxTeams={
 };
 const scLigaMxLookup={};for(const [file,names] of Object.entries(scLigaMxTeams)){for(const name of names)scLigaMxLookup[scNorm(name)]=file;}
 function scLigaMxCrest(team,league){const file=scLigaMxLookup[scNorm(team)];const leagueKey=scNorm(league);if(!file)return '';if(leagueKey.includes('liga mx')||leagueKey.includes('soccer otro')||!leagueKey)return SC_LIGAMX_BASE+encodeURIComponent(file);return '';}
-function scCrest(team,league){const mx=scLigaMxCrest(team,league);if(mx)return mx;const nfl=scNflCode(team,league);if(nfl)return SC_NFL_LOGO_BASE+encodeURIComponent(nfl)+'.png';const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
+function scCrest(team,league){const mx=scLigaMxCrest(team,league);if(mx)return mx;const nfl=scNflCode(team,league);if(nfl)return SC_NFL_LOGO_BASE+encodeURIComponent(nfl==='JAC'?'JAX':nfl)+'.png';const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
  for(const [l,records] of [...pools,...Object.entries(scLogoCatalog).filter(([l])=>l!==lg)]){const aliases=scLogoAliases[l]||{};const alias=aliases[key]||aliases[key.replace(/ /g,'')];const rec=alias&&records[String(alias)];if(rec?.logo)return rec.logo;for(const item of Object.values(records)){if([item.name,item.shortName,item.tla].some(n=>scNorm(n)===key))return item.logo||item.crest_source||''}}
  const id=override?.id||scCommon[key];return id?'https://crests.football-data.org/'+encodeURIComponent(id)+'.png':'';
 }
 function scTeamHTML(name,league){
  const clean=String(name||'').trim(),url=scCrest(clean,league);
  const initials='<span class="team-fallback" aria-hidden="true">'+esc(clean.slice(0,2).toUpperCase())+'</span>';
- const crest=url?'<img class="team-badge" src="'+esc(url)+'" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">'+'<span class="team-fallback" aria-hidden="true" hidden>'+esc(clean.slice(0,2).toUpperCase())+'</span>':initials;
+ const fallbackUrl=scNflCode(clean,league)==='JAC'?SC_NFL_LOGO_BASE+'JAC.png':'';
+ const errorHandler=fallbackUrl?'if(!this.dataset.triedAlt){this.dataset.triedAlt="1";this.src="'+fallbackUrl+'";}else{this.hidden=true;this.nextElementSibling.hidden=false;}':'this.hidden=true;this.nextElementSibling.hidden=false';
+ const crest=url?'<img class="team-badge" src="'+esc(url)+'" alt="" loading="lazy" onerror="'+errorHandler.replace(/"/g,'&quot;')+'">'+'<span class="team-fallback" aria-hidden="true" hidden>'+esc(clean.slice(0,2).toUpperCase())+'</span>':initials;
  return crest+'<span>'+esc(clean)+'</span>';
 }
 function scFixture(match,league){const names=String(match||'').split(/\s+(?:vs\.?|v\.?|@)\s+/i);if(names.length!==2)return esc(match);
