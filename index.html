@@ -616,7 +616,7 @@ let scLogoCatalog={},scLogoAliases={};
 const scNorm=x=>String(x||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim();
 const scOverrides={"real betis":{"league":"la_liga","id":"90"},"betis":{"league":"la_liga","id":"90"},"real betis balompie":{"league":"la_liga","id":"90"},"sevilla":{"league":"la_liga","id":"559"},"racing santander":{"league":"la_liga","id":"5335"},"deportivo la coruna":{"league":"la_liga","id":"560"},"celta vigo":{"league":"la_liga","id":"558"},"hull":{"league":"premier_league","id":"322"},"ipswich":{"league":"premier_league","id":"349"},"leeds":{"league":"premier_league","id":"341"},"manchester united":{"league":"premier_league","id":"66"},"coventry":{"league":"premier_league","id":"1076"},"nottingham forest":{"league":"premier_league","id":"351"},"manchester city":{"league":"premier_league","id":"65"},"bayern munich":{"league":"bundesliga","id":"5"},"werder bremen":{"league":"bundesliga","id":"12"},"fc cologne":{"league":"bundesliga","id":"1"},"mainz 05":{"league":"bundesliga","id":"15"},"schalke 04":{"league":"bundesliga","id":"6"},"paderborn":{"league":"bundesliga","id":"29"},"borussia m gladbach":{"league":"bundesliga","id":"18"},"como":{"league":"serie_a","id":"7397"},"venezia":{"league":"serie_a","id":"454"},"rennes":{"league":"ligue_1","id":"529"},"lens":{"league":"ligue_1","id":"546"},"angers":{"league":"ligue_1","id":"532"},"sevilla fc":{"league":"la_liga","id":"559"},"racing de santander":{"league":"la_liga","id":"5335"},"deportivo":{"league":"la_liga","id":"560"},"celta de vigo":{"league":"la_liga","id":"558"},"hull city":{"league":"premier_league","id":"322"},"ipswich town":{"league":"premier_league","id":"349"},"leeds united":{"league":"premier_league","id":"341"},"man united":{"league":"premier_league","id":"66"},"man utd":{"league":"premier_league","id":"66"},"coventry city":{"league":"premier_league","id":"1076"},"nottm forest":{"league":"premier_league","id":"351"},"nott m forest":{"league":"premier_league","id":"351"},"man city":{"league":"premier_league","id":"65"},"bayern munchen":{"league":"bundesliga","id":"5"},"fc koln":{"league":"bundesliga","id":"1"},"1 fc koln":{"league":"bundesliga","id":"1"},"mainz":{"league":"bundesliga","id":"15"},"fsv mainz":{"league":"bundesliga","id":"15"},"schalke":{"league":"bundesliga","id":"6"},"sc paderborn":{"league":"bundesliga","id":"29"},"borussia monchengladbach":{"league":"bundesliga","id":"18"},"mgladbach":{"league":"bundesliga","id":"18"},"m gladbach":{"league":"bundesliga","id":"18"},"como 1907":{"league":"serie_a","id":"7397"},"stade rennes":{"league":"ligue_1","id":"529"},"stade rennais":{"league":"ligue_1","id":"529"},"racing lens":{"league":"ligue_1","id":"546"},"angers sco":{"league":"ligue_1","id":"532"}};
 const scCommon={
- 'real madrid':86,'fc barcelona':81,'barcelona':81,'atletico madrid':78,'athletic club':77,
+ 'valencia':95,'valencia cf':95,'valencia club de futbol':95,'valencia c f':95,'real madrid':86,'fc barcelona':81,'barcelona':81,'atletico madrid':78,'athletic club':77,
  'arsenal':57,'chelsea':61,'liverpool':64,'fulham':63,'fulham fc':63,'alaves':263,'deportivo alaves':263,'deportivo alaves sad':263,'alaves fc':263,'tottenham':73,'tottenham hotspur':73,
  'manchester united':66,'man united':66,'man city':65,'manchester city':65,
  'newcastle':67,'newcastle united':67,'aston villa':58,'west ham':563,'everton':62,
@@ -659,40 +659,55 @@ const scLigaMxLookup={};for(const [file,names] of Object.entries(scLigaMxTeams))
 function scLigaMxCrest(team,league){const file=scLigaMxLookup[scNorm(team)];const leagueKey=scNorm(league);if(!file)return '';if(leagueKey.includes('liga mx')||leagueKey.includes('soccer otro')||!leagueKey)return SC_LIGAMX_BASE+encodeURIComponent(file);return '';}
 // Resolve catalog assets against this page, then retry the official crest if unavailable.
 // The JSON catalog remains the primary source for soccer logos.
+const scLogoStatus={catalog:'pending',aliases:'pending',errors:[]};
+const scLogoDebugEnabled=new URLSearchParams(location.search).has('logoDebug');
 function scCatalogLogoUrls(rec){
  if(!rec)return [];
  const urls=[];
  if(typeof rec.logo==='string'&&rec.logo.trim()){
-  const path=rec.logo.trim();
-  try{urls.push(new URL(path,document.baseURI).href)}catch(e){}
+  try{urls.push(new URL(rec.logo.trim(),document.baseURI).href)}catch(e){}
  }
  if(typeof rec.crest_source==='string'&&rec.crest_source.trim())urls.push(rec.crest_source.trim());
- if(String(rec.id)==='471')urls.push('https://crests.football-data.org/471.png');
+ if(rec.id!=null)urls.push('https://crests.football-data.org/'+encodeURIComponent(rec.id)+'.png');
  return [...new Set(urls)];
 }
-function scCrestCandidates(team,league){
- const mx=scLigaMxCrest(team,league);if(mx)return [mx];
- const nfl=scNflCode(team,league);if(nfl)return [SC_NFL_LOGO_BASE+encodeURIComponent(nfl==='JAC'?'JAX':nfl)+'.png',...(nfl==='JAC'?[SC_NFL_LOGO_BASE+'JAC.png']:[])];
+function scResolveLogo(team,league){
+ const mx=scLigaMxCrest(team,league);if(mx)return {source:'liga-mx',league:'liga_mx',urls:[mx]};
+ const nfl=scNflCode(team,league);
+ if(nfl)return {source:'nfl',league:'nfl',urls:[SC_NFL_LOGO_BASE+encodeURIComponent(nfl==='JAC'?'JAX':nfl)+'.png',...(nfl==='JAC'?[SC_NFL_LOGO_BASE+'JAC.png']:[])]};
  const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];
- const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
- for(const [l,records] of [...pools,...Object.entries(scLogoCatalog).filter(([l])=>l!==lg)]){
-  if(!records||typeof records!=='object')continue;
+ const leagues=Object.keys(scLogoCatalog);
+ const ordered=lg&&leagues.includes(lg)?[lg,...leagues.filter(x=>x!==lg)]:leagues;
+ for(const l of ordered){
+  const records=scLogoCatalog[l];if(!records||typeof records!=='object')continue;
   const aliases=scLogoAliases[l]||{};
-  const alias=aliases[key]||aliases[key.replace(/ /g,'')];
-  const aliasId=typeof alias==='object'&&alias!==null?(alias.id||alias.team_id):alias;
+  const alias=aliases[key]??aliases[key.replace(/ /g,'')];
+  const aliasId=typeof alias==='object'&&alias!==null?(alias.id??alias.team_id):alias;
   const rec=aliasId!=null?records[String(aliasId)]:null;
-  if(rec){const found=scCatalogLogoUrls(rec);if(found.length)return found;}
+  if(rec){const urls=scCatalogLogoUrls(rec);if(urls.length)return {source:'json-alias',league:l,id:rec.id,urls};}
   for(const item of Object.values(records)){
-   if(item&&[item.name,item.shortName,item.tla].some(n=>scNorm(n)===key)){const found=scCatalogLogoUrls(item);if(found.length)return found;}
+   if(item&&[item.name,item.shortName,item.tla].some(n=>scNorm(n)===key)){
+    const urls=scCatalogLogoUrls(item);if(urls.length)return {source:'json-catalog',league:l,id:item.id,urls};
+   }
   }
  }
  const id=override?.id||scCommon[key];
- return id?['https://crests.football-data.org/'+encodeURIComponent(id)+'.png']:[];
+ return id?{source:override?.id?'scOverrides':'scCommon',id,league:override?.league||lg,urls:['https://crests.football-data.org/'+encodeURIComponent(id)+'.png']}:{source:'missing',league:lg,urls:[]};
 }
+function scCrestCandidates(team,league){return scResolveLogo(team,league).urls;}
+// Browser console: survivorLogoDiagnostic('Valencia','La Liga')
+// Or append ?logoDebug=1 to the page URL to log missing mappings during rendering.
+window.survivorLogoDiagnostic=function(team,league=''){
+ const result=scResolveLogo(team,league);
+ const report={team,league,source:result.source,matchedLeague:result.league||'',id:result.id||null,urls:result.urls,jsonStatus:{...scLogoStatus}};
+ console.info('[Survivor logo diagnostic]',report);
+ return report;
+};
 function scCrest(team,league){return scCrestCandidates(team,league)[0]||''}
 window.survivorTeamCrest=scCrest;
 function scTeamHTML(name,league){
- const clean=String(name||'').trim(),urls=scCrestCandidates(clean,league);
+ const clean=String(name||'').trim(),resolved=scResolveLogo(clean,league),urls=resolved.urls;
+ if(scLogoDebugEnabled&&resolved.source==='missing')console.warn('[Survivor logos] Unmatched team:',clean,league);
  const initials='<span class="team-fallback" aria-hidden="true">'+esc(clean.slice(0,2).toUpperCase())+'</span>';
  if(!urls.length)return initials+'<span>'+esc(clean)+'</span>';
  // Image URLs are JSON encoded in an HTML attribute so onerror can retry safely.
@@ -704,7 +719,29 @@ function scTeamHTML(name,league){
 function scFixture(match,league){const names=String(match||'').split(/\s+(?:vs\.?|v\.?|@)\s+/i);if(names.length!==2)return esc(match);
  return '<span class="team-fixture">'+scTeamHTML(names[0],league)+'<span class="team-vs">VS</span>'+scTeamHTML(names[1],league)+'</span>';
 }
-async function scLoadLogos(){try{const [cat,aliases]=await Promise.all(['./data/team_logos.json','./data/team_logo_aliases.json'].map(async path=>{const r=await fetch(path);return r.ok?r.json():{}}));scLogoCatalog=cat.leagues||cat||{};scLogoAliases=aliases.leagues||aliases||{};render();}catch(e){console.info('Team catalog optional; using known crests and initials')}}
+async function scLoadLogos(){
+ const paths=[['catalog','./data/team_logos.json'],['aliases','./data/team_logo_aliases.json']];
+ const loaded=await Promise.all(paths.map(async ([type,path])=>{
+  try{
+   const response=await fetch(path,{cache:'no-cache'});
+   if(!response.ok)throw new Error('HTTP '+response.status+' ('+path+')');
+   const json=await response.json();
+   if(!json||typeof json!=='object')throw new Error('Invalid JSON structure ('+path+')');
+   scLogoStatus[type]='loaded';
+   return json.leagues||json;
+  }catch(error){
+   scLogoStatus[type]='error';scLogoStatus.errors.push(type+': '+error.message);
+   console.warn('[Survivor logos] Failed to load '+path,error);
+   return {};
+  }
+ }));
+ scLogoCatalog=loaded[0];
+ scLogoAliases=Object.fromEntries(Object.entries(loaded[1]).map(([league,aliases])=>[
+  league,Object.fromEntries(Object.entries(aliases||{}).map(([name,id])=>[scNorm(name),id]))
+ ]));
+ if(scLogoDebugEnabled)console.info('[Survivor logos] JSON load status',scLogoStatus);
+ render();
+}
 scLoadLogos();
 
 const explainPick=(r,schedule=false)=>`<button type="button" class="pick-explain-trigger" data-explain="${esc(r.id)}" title="Consultar explicación del pick">${schedule?'🎯 ':''}${esc(r.selection)}<span class="pick-hint">ⓘ ${r.explanation?.trim()?'Ver explicación':'Consultar explicación'}</span></button>`;
