@@ -514,7 +514,7 @@ const scCommon={
  'newcastle':67,'newcastle united':67,'aston villa':58,'west ham':563,'everton':62,
  'bayern munich':5,'bayern munchen':5,'borussia dortmund':4,'bayer leverkusen':3,
  'rb leipzig':721,'juventus':109,'inter milan':108,'inter':108,'ac milan':98,
- 'napoli':113,'roma':100,'as roma':100,'lazio':110,'ss lazio':110,'s s lazio':110,'societa sportiva lazio':110,'cagliari':104,'cagliari calcio':104,'cagliari calcio 1920':104,'psg':524,'paris saint germain':524,
+ 'sassuolo':471,'us sassuolo':471,'us sassuolo calcio':471,'sassuolo calcio':471,'napoli':113,'roma':100,'as roma':100,'lazio':110,'ss lazio':110,'s s lazio':110,'societa sportiva lazio':110,'cagliari':104,'cagliari calcio':104,'cagliari calcio 1920':104,'psg':524,'paris saint germain':524,
  'marseille':516,'ajax':678,'psv':674,'feyenoord':675,'benfica':1903,'porto':503,'sporting cp':498
 };
 const scLeague=x=>{const k=scNorm(x);if(k.includes('premier'))return 'premier_league';if(k.includes('la liga'))return 'la_liga';if(k.includes('bundesliga'))return 'bundesliga';if(k.includes('serie a'))return 'serie_a';if(k.includes('ligue 1'))return 'ligue_1';if(k.includes('champions'))return 'champions_league';return ''};
@@ -549,23 +549,54 @@ const scLigaMxTeams={
 };
 const scLigaMxLookup={};for(const [file,names] of Object.entries(scLigaMxTeams)){for(const name of names)scLigaMxLookup[scNorm(name)]=file;}
 function scLigaMxCrest(team,league){const file=scLigaMxLookup[scNorm(team)];const leagueKey=scNorm(league);if(!file)return '';if(leagueKey.includes('liga mx')||leagueKey.includes('soccer otro')||!leagueKey)return SC_LIGAMX_BASE+encodeURIComponent(file);return '';}
-function scCrest(team,league){const mx=scLigaMxCrest(team,league);if(mx)return mx;const nfl=scNflCode(team,league);if(nfl)return SC_NFL_LOGO_BASE+encodeURIComponent(nfl==='JAC'?'JAX':nfl)+'.png';const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
- for(const [l,records] of [...pools,...Object.entries(scLogoCatalog).filter(([l])=>l!==lg)]){const aliases=scLogoAliases[l]||{};const alias=aliases[key]||aliases[key.replace(/ /g,'')];const rec=alias&&records[String(alias)];if(rec?.logo)return rec.logo;for(const item of Object.values(records)){if([item.name,item.shortName,item.tla].some(n=>scNorm(n)===key))return item.logo||item.crest_source||''}}
- const id=override?.id||scCommon[key];return id?'https://crests.football-data.org/'+encodeURIComponent(id)+'.png':'';
+// Resolve catalog assets against this page, then retry the official crest if unavailable.
+// The JSON catalog remains the primary source for soccer logos.
+function scCatalogLogoUrls(rec){
+ if(!rec)return [];
+ const urls=[];
+ if(typeof rec.logo==='string'&&rec.logo.trim()){
+  const path=rec.logo.trim();
+  try{urls.push(new URL(path,document.baseURI).href)}catch(e){}
+ }
+ if(typeof rec.crest_source==='string'&&rec.crest_source.trim())urls.push(rec.crest_source.trim());
+ if(String(rec.id)==='471')urls.push('https://crests.football-data.org/471.png');
+ return [...new Set(urls)];
 }
+function scCrestCandidates(team,league){
+ const mx=scLigaMxCrest(team,league);if(mx)return [mx];
+ const nfl=scNflCode(team,league);if(nfl)return [SC_NFL_LOGO_BASE+encodeURIComponent(nfl==='JAC'?'JAX':nfl)+'.png',...(nfl==='JAC'?[SC_NFL_LOGO_BASE+'JAC.png']:[])];
+ const key=scNorm(team),lg=scLeague(league),override=scOverrides[key];
+ const pools=lg&&scLogoCatalog[lg]?[[lg,scLogoCatalog[lg]]]:Object.entries(scLogoCatalog);
+ for(const [l,records] of [...pools,...Object.entries(scLogoCatalog).filter(([l])=>l!==lg)]){
+  if(!records||typeof records!=='object')continue;
+  const aliases=scLogoAliases[l]||{};
+  const alias=aliases[key]||aliases[key.replace(/ /g,'')];
+  const aliasId=typeof alias==='object'&&alias!==null?(alias.id||alias.team_id):alias;
+  const rec=aliasId!=null?records[String(aliasId)]:null;
+  if(rec){const found=scCatalogLogoUrls(rec);if(found.length)return found;}
+  for(const item of Object.values(records)){
+   if(item&&[item.name,item.shortName,item.tla].some(n=>scNorm(n)===key)){const found=scCatalogLogoUrls(item);if(found.length)return found;}
+  }
+ }
+ const id=override?.id||scCommon[key];
+ return id?['https://crests.football-data.org/'+encodeURIComponent(id)+'.png']:[];
+}
+function scCrest(team,league){return scCrestCandidates(team,league)[0]||''}
 window.survivorTeamCrest=scCrest;
 function scTeamHTML(name,league){
- const clean=String(name||'').trim(),url=scCrest(clean,league);
+ const clean=String(name||'').trim(),urls=scCrestCandidates(clean,league);
  const initials='<span class="team-fallback" aria-hidden="true">'+esc(clean.slice(0,2).toUpperCase())+'</span>';
- const fallbackUrl=scNflCode(clean,league)==='JAC'?SC_NFL_LOGO_BASE+'JAC.png':'';
- const errorHandler=fallbackUrl?'if(!this.dataset.triedAlt){this.dataset.triedAlt="1";this.src="'+fallbackUrl+'";}else{this.hidden=true;this.nextElementSibling.hidden=false;}':'this.hidden=true;this.nextElementSibling.hidden=false';
- const crest=url?'<img class="team-badge" src="'+esc(url)+'" alt="" loading="lazy" onerror="'+errorHandler.replace(/"/g,'&quot;')+'">'+'<span class="team-fallback" aria-hidden="true" hidden>'+esc(clean.slice(0,2).toUpperCase())+'</span>':initials;
+ if(!urls.length)return initials+'<span>'+esc(clean)+'</span>';
+ // Image URLs are JSON encoded in an HTML attribute so onerror can retry safely.
+ const alternatives=esc(JSON.stringify(urls.slice(1)));
+ const errorHandler='var a=JSON.parse(this.dataset.alternatives||"[]");if(a.length){this.src=a.shift();this.dataset.alternatives=JSON.stringify(a)}else{this.hidden=true;this.nextElementSibling.hidden=false}';
+ const crest='<img class="team-badge" src="'+esc(urls[0])+'" data-alternatives="'+alternatives+'" alt="" loading="lazy" onerror="'+esc(errorHandler)+'">'+'<span class="team-fallback" aria-hidden="true" hidden>'+esc(clean.slice(0,2).toUpperCase())+'</span>';
  return crest+'<span>'+esc(clean)+'</span>';
 }
 function scFixture(match,league){const names=String(match||'').split(/\s+(?:vs\.?|v\.?|@)\s+/i);if(names.length!==2)return esc(match);
  return '<span class="team-fixture">'+scTeamHTML(names[0],league)+'<span class="team-vs">VS</span>'+scTeamHTML(names[1],league)+'</span>';
 }
-async function scLoadLogos(){try{const [cat,aliases]=await Promise.all(['./data/team_logos.json','./data/team_logo_aliases.json'].map(async path=>{const r=await fetch(path);return r.ok?r.json():{}}));scLogoCatalog=cat.leagues||{};scLogoAliases=aliases.leagues||{};render();}catch(e){console.info('Team catalog optional; using known crests and initials')}}
+async function scLoadLogos(){try{const [cat,aliases]=await Promise.all(['./data/team_logos.json','./data/team_logo_aliases.json'].map(async path=>{const r=await fetch(path);return r.ok?r.json():{}}));scLogoCatalog=cat.leagues||cat||{};scLogoAliases=aliases.leagues||aliases||{};render();}catch(e){console.info('Team catalog optional; using known crests and initials')}}
 scLoadLogos();
 
 const explainPick=(r,schedule=false)=>`<button type="button" class="pick-explain-trigger" data-explain="${esc(r.id)}" title="Consultar explicación del pick">${schedule?'🎯 ':''}${esc(r.selection)}<span class="pick-hint">ⓘ ${r.explanation?.trim()?'Ver explicación':'Consultar explicación'}</span></button>`;
