@@ -390,6 +390,7 @@ th{padding:8px 7px;font-size:10px}td{padding:8px 7px;font-size:12px}.rank{paddin
 .profile-head{position:relative;gap:16px;padding:8px 0 22px;border-bottom:1px solid #294358;margin-bottom:20px}
 .profile-head .avatar{width:74px;height:74px;border:3px solid #b6f76b;box-shadow:0 0 0 6px #b6f76b16}
 .profile-head h2{font-size:clamp(22px,3vw,29px);letter-spacing:-.7px;margin-bottom:7px}
+.profile-champion-badge{display:table;width:max-content;margin:0 0 9px;font-size:12px!important;padding:5px 11px}
 .profile-close{position:absolute;right:0;top:0;width:37px;height:37px;border-radius:50%;font-size:23px;display:grid;place-items:center;padding:0;background:#243b50;border:1px solid #48647c}
 .profile-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .profile-metric{background:#162b3f;border:1px solid #2d4a60;padding:13px 14px;border-radius:12px}
@@ -831,6 +832,12 @@ function scPlayerTendencies(picks){
  const wins=settled.filter(r=>r.status==='win').length;
  const odds=valid.map(r=>dec(r.odds,r.oddsFormat)).filter(n=>Number.isFinite(n)&&n>1);
  const avg=odds.length?odds.reduce((a,b)=>a+b,0)/odds.length:null;
+ // Compare each selection against the minimum required in its own week.
+ const weeklyOdds=valid.map(r=>({week:Number(r.week),odd:dec(r.odds,r.oddsFormat)}))
+  .filter(r=>Number.isInteger(r.week)&&r.week>=1&&Number.isFinite(r.odd)&&r.odd>1)
+  .map(r=>({...r,required:minimum(r.week),extra:Math.round((r.odd-minimum(r.week))*100)/100}));
+ const avgExtra=weeklyOdds.length?weeklyOdds.reduce((sum,r)=>sum+r.extra,0)/weeklyOdds.length:null;
+ const avgRequired=weeklyOdds.length?weeklyOdds.reduce((sum,r)=>sum+r.required,0)/weeklyOdds.length:null;
  const classify=r=>{const t=String(r.selection||'').toLowerCase();
   if(/\b(over|under|más de|menos de|altas|bajas|o\/u|total|goles|corners)\b/i.test(t))return 'Totales';
   if(/\b(spread|handicap|hándicap|[+-]\d+(?:[.,]\d+)?)\b/i.test(t))return 'Hándicap / Spread';
@@ -841,23 +848,53 @@ function scPlayerTendencies(picks){
  const markets=group(classify),leagues=group(r=>String(r.league||'Sin liga').trim()||'Sin liga');
  const pct=(n,total=valid.length)=>total?Math.round(100*n/total):0;
  const top=markets[0],league=leagues[0];
- const risk=avg===null?'Sin datos':avg<1.5?'Conservador':avg<2?'Moderado':'Agresivo';
- const riskDesc=avg===null?'Aún no hay momios válidos':avg<1.5?'Prefiere momios relativamente bajos':avg<2?'Combina momios bajos y medios':'Suele seleccionar momios elevados';
+ const risk=avgExtra===null?'Sin datos':avgExtra<=0.10+1e-9?'Conservador':avgExtra<=0.30+1e-9?'Moderado':'Agresivo';
+ const riskDesc=avgExtra===null?'Sin momios semanales válidos':avgExtra<=0.10+1e-9?'Suele elegir cerca del mínimo semanal':avgExtra<=0.30+1e-9?'Supera moderadamente el mínimo semanal':'Suele superar ampliamente el mínimo semanal';
+ // Archetype combines relative weekly risk and preferred market, rather than odds alone.
+ const dominantShare=top?top[1]/valid.length:0;
+ const marketType=top&&dominantShare>=0.45?top[0]:null;
+ let archetype='Perfil en formación',archetypeIcon='🧭',archetypeDesc='Se necesitan más selecciones para definir su identidad.';
+ if(valid.length>=1){
+  if(!marketType){
+   archetype=risk==='Agresivo'?'Explorador de oportunidades':risk==='Conservador'?'Estratega versátil':'Apostador versátil';
+   archetypeIcon=risk==='Agresivo'?'🚀':risk==='Conservador'?'🛡️':'🎲';
+   archetypeDesc='Combina diferentes mercados con un enfoque '+risk.toLowerCase()+' respecto al mínimo semanal.';
+  }else if(marketType==='Ganador / Moneyline'){
+   archetype=risk==='Conservador'?'Estratega de favoritos':risk==='Moderado'?'Cazador de valor':'Buscador de sorpresas';
+   archetypeIcon=risk==='Conservador'?'🛡️':risk==='Moderado'?'🎯':'🔥';
+   archetypeDesc='Prefiere apostar al ganador y utiliza un enfoque '+risk.toLowerCase()+' respecto al mínimo semanal.';
+  }else if(marketType==='Totales'){
+   archetype=risk==='Agresivo'?'Cazador de goles':'Especialista en totales';
+   archetypeIcon='⚽';
+   archetypeDesc='Concentra sus selecciones en goles y totales, con un enfoque '+risk.toLowerCase()+'.';
+  }else if(marketType==='Hándicap / Spread'){
+   archetype=risk==='Agresivo'?'Desafiador del spread':'Estratega del hándicap';
+   archetypeIcon='📐';
+   archetypeDesc='Prefiere hándicaps y spreads, con un enfoque '+risk.toLowerCase()+'.';
+  }else{
+   archetype='Explorador de mercados';archetypeIcon='🔎';
+   archetypeDesc='Sus selecciones se concentran en mercados diversos con un enfoque '+risk.toLowerCase()+'.';
+  }
+ }
+ const identityConfidence=valid.length===0?'Sin selecciones':valid.length<5?'Personalidad provisional':valid.length<10?'Tendencia emergente':'Tendencia consolidada';
+
  const stat=(label,value,sub)=>`<div class="sc-insight-stat"><span>${esc(label)}</span><strong>${esc(String(value))}</strong><small>${esc(sub)}</small></div>`;
  const bar=([name,n])=>`<div class="sc-trend-row"><div class="sc-trend-label"><span>${esc(name)}</span><strong>${pct(n)}% <small>(${n})</small></strong></div><div class="sc-trend-track"><i style="width:${pct(n)}%"></i></div></div>`;
  const observations=[];
  if(top)observations.push(`Su mercado más elegido es ${top[0]} (${pct(top[1])}% de sus picks).`);
  if(league)observations.push(`La competición que más utiliza es ${league[0]} (${pct(league[1])}%).`);
- if(avg!==null)observations.push(`Registra un momio decimal promedio de ${avg.toFixed(2)}, un patrón ${risk.toLowerCase()} según sus momios.`);
+ if(avgExtra!==null)observations.push(`Su momio supera el mínimo de cada semana por ${avgExtra.toFixed(2)} en promedio; estilo ${risk.toLowerCase()} relativo al requisito semanal.`);
+ if(valid.length>=1)observations.unshift(`Identidad de selección: ${archetype}. ${archetypeDesc}`);
+
  if(settled.length)observations.push(`Acertó ${wins} de ${settled.length} picks finalizados (${pct(wins,settled.length)}%).`);
- const note=valid.length<5?'Análisis preliminar: menos de 5 selecciones disponibles.':'Análisis descriptivo basado en picks registrados; no predice resultados futuros.';
+ const note=valid.length===0?'Sin selecciones registradas todavía.':valid.length<5?'Personalidad provisional basada en '+valid.length+' '+(valid.length===1?'selección':'selecciones')+'; se ajustará al registrar más picks.':'Análisis descriptivo basado en picks registrados; no predice resultados futuros.';
  return `<section class="sc-tendencies" aria-label="Análisis de tendencias">
  <div class="sc-insight-heading"><div class="sc-insight-symbol">✦</div><div><span class="sc-insight-eyebrow">FURY SPORTS AI / PLAYER INTELLIGENCE</span><h3>ADN del jugador</h3><p>Cómo elige sus picks, dónde participa y qué resultados obtiene.</p></div></div>
- <div class="sc-strategy-card"><div><span class="sc-insight-eyebrow">ESTILO DE SELECCIÓN</span><strong>${esc(risk)}</strong><small>${esc(riskDesc)}</small></div><div class="sc-strategy-indicator">${avg===null?'—':avg.toFixed(2)}<span>momio promedio</span></div></div>
- <div class="sc-insight-stats">${stat('Picks analizados',valid.length,'Excluye anulados')}${stat('Acierto',settled.length?pct(wins,settled.length)+'%':'—',settled.length+' finalizados')}${stat('Momio promedio',avg===null?'—':avg.toFixed(2),'Formato decimal')}${stat('Momios ≥ 2.00',odds.filter(n=>n>=2).length,odds.length+' momios válidos')}</div>
+ <div class="sc-strategy-card"><div><span class="sc-insight-eyebrow">ADN DE SELECCIÓN · ${esc(identityConfidence)}</span><strong>${archetypeIcon} ${esc(archetype)}</strong><small>${esc(archetypeDesc)}</small><small>Riesgo semanal: ${esc(risk)} · Mercado dominante: ${esc(marketType||'Mixto')}</small></div><div class="sc-strategy-indicator">${avgExtra===null?'—':(avgExtra>=0?'+':'')+avgExtra.toFixed(2)}<span>sobre mínimo semanal</span></div></div>
+ <div class="sc-insight-stats">${stat('Picks analizados',valid.length,'Excluye anulados')}${stat('Acierto',settled.length?pct(wins,settled.length)+'%':'—',settled.length+' finalizados')}${stat('Momio promedio',avg===null?'—':avg.toFixed(2),'Formato decimal')}${stat('Mínimo promedio',avgRequired===null?'—':avgRequired.toFixed(2),'Según semanas elegidas')}${stat('Exceso promedio',avgExtra===null?'—':(avgExtra>=0?'+':'')+avgExtra.toFixed(2),'Sobre mínimo semanal')}</div>
  <div class="sc-insight-columns"><div class="sc-insight-panel"><h4><span>◈</span> Mercados favoritos</h4>${markets.length?markets.slice(0,5).map(bar).join(''):'<p class="sc-no-data">Sin picks registrados</p>'}</div>
  <div class="sc-insight-panel"><h4><span>◎</span> Competiciones favoritas</h4>${leagues.length?leagues.slice(0,5).map(bar).join(''):'<p class="sc-no-data">Sin picks registrados</p>'}</div></div>
- <div class="sc-insight-report"><div class="sc-insight-report-title"><span>✦</span><strong>Scouting report</strong><span class="sc-insight-tag">ANÁLISIS AUTOMÁTICO</span></div><p>${observations.length?observations.map(esc).join(' '):'Todavía no hay suficientes selecciones para identificar preferencias.'}</p><div class="sc-insight-disclaimer">ⓘ ${esc(note)}</div></div>
+ <div class="sc-insight-report"><div class="sc-insight-disclaimer">Estilo relativo al mínimo semanal: Conservador ≤ +0.10 · Moderado +0.11 a +0.30 · Agresivo &gt; +0.30. Cada pick se compara con su propia semana (Semana 1: 1.20, +0.10 por semana).</div><div class="sc-insight-report-title"><span>✦</span><strong>Scouting report</strong><span class="sc-insight-tag">ANÁLISIS AUTOMÁTICO</span></div><p>${observations.length?observations.map(esc).join(' '):'Todavía no hay suficientes selecciones para identificar preferencias.'}</p><div class="sc-insight-disclaimer">ⓘ ${esc(note)}</div></div>
  </section>`;
 }
 function showProfile(player){
@@ -873,7 +910,7 @@ function showProfile(player){
  const metric=(label,value,tone='')=>`<div class="profile-metric ${tone}"><strong>${esc(String(value))}</strong><small>${esc(label)}</small></div>`;
 
  const lifeBar=`<div class="sc-life-hud ${remaining===0?'sc-life-empty':''}" aria-label="${remaining} de 2 vidas restantes"><div class="sc-life-title"><span>❤️ ENERGÍA DE SUPERVIVENCIA</span><strong>${remaining}/2 VIDAS</strong></div><div class="sc-life-segments">${[0,1].map(i=>`<div class="sc-life-segment ${i<remaining?'active':'depleted'}"><span><img class="sc-life-icon" src="${i<remaining?SC_LIFE_MUSHROOM:SC_LIFE_SKULL}" alt="${i<remaining?'Vida disponible':'Vida perdida'}"></span></div>`).join('')}</div><div class="sc-life-status">${remaining===2?'🛡️ VIDA COMPLETA · LISTO PARA COMPETIR':remaining===1?'⚠️ ÚLTIMA VIDA · ZONA DE PELIGRO':'💀 GAME OVER · ELIMINADO'}</div></div>`;
- $('profileContent').innerHTML=`<div class="profile-head">${avatar(player,true)}<div><h2 id="profileTitle">${esc(player)}</h2><span class="pill ${loss?'loss':'win'}">${loss?'💀 Eliminado · Semana '+esc(loss.week):'🟢 '+remaining+' '+(remaining===1?'vida':'vidas')+' restantes'}</span></div><button type="button" class="profile-close" data-close-profile aria-label="Cerrar perfil">×</button></div>${lifeBar}<div class="profile-metrics">${metric('Picks registrados',picks.length)}${metric('Ganados',wins.length,'sc-metric-win')}${metric('Perdidos',losses.length,'sc-metric-loss')}${metric('Pendientes',pending.length,'sc-metric-pending')}${metric('Anulados',voids.length)}${metric('Porcentaje de acierto',settled?fmt(wins.length/settled*100)+'%':'—','sc-metric-win')}${metric('Suma momios ganados',fmt(sum))}${metric('Racha de victorias',streak,'sc-metric-win')}</div>${scPlayerTendencies(picks)}<div class="profile-history"><h3>Historial de picks</h3>${picks.length?picks.map(r=>`<div class="profile-history-item sc-result-${r.status==='win'?'win':r.status==='loss'?'loss':r.status==='pending'?'pending':'void'}"><b>Semana ${esc(r.week)}</b> · ${esc(r.match)}<div>${esc(r.selection)} · ${esc(r.odds)} (${esc(r.oddsFormat)})</div><span>${esc({win:'🟢 Ganado',loss:'🔴 Perdido',pending:'🔵 Programado',void:'⚪ Anulado'}[r.status]||r.status)} · ${esc(dateStr(r.gameDate))}</span></div>`).join(''):'<p class="muted">Este participante aún no tiene picks registrados.</p>'}</div>`;
+ $('profileContent').innerHTML=`<div class="profile-head">${avatar(player,true)}<div><h2 id="profileTitle">${esc(player)}</h2>${isChampion(player)?'<span class="champion-badge profile-champion-badge" title="Campeón">👑 CAMPEÓN</span>':''}<span class="pill ${loss?'loss':'win'}">${loss?'💀 Eliminado · Semana '+esc(loss.week):'🟢 '+remaining+' '+(remaining===1?'vida':'vidas')+' restantes'}</span></div><button type="button" class="profile-close" data-close-profile aria-label="Cerrar perfil">×</button></div>${lifeBar}<div class="profile-metrics">${metric('Picks registrados',picks.length)}${metric('Ganados',wins.length,'sc-metric-win')}${metric('Perdidos',losses.length,'sc-metric-loss')}${metric('Pendientes',pending.length,'sc-metric-pending')}${metric('Anulados',voids.length)}${metric('Porcentaje de acierto',settled?fmt(wins.length/settled*100)+'%':'—','sc-metric-win')}${metric('Suma momios ganados',fmt(sum))}${metric('Racha de victorias',streak,'sc-metric-win')}</div>${scPlayerTendencies(picks)}<div class="profile-history"><h3>Historial de picks</h3>${picks.length?picks.map(r=>`<div class="profile-history-item sc-result-${r.status==='win'?'win':r.status==='loss'?'loss':r.status==='pending'?'pending':'void'}"><b>Semana ${esc(r.week)}</b> · ${esc(r.match)}<div>${esc(r.selection)} · ${esc(r.odds)} (${esc(r.oddsFormat)})</div><span>${esc({win:'🟢 Ganado',loss:'🔴 Perdido',pending:'🔵 Programado',void:'⚪ Anulado'}[r.status]||r.status)} · ${esc(dateStr(r.gameDate))}</span></div>`).join(''):'<p class="muted">Este participante aún no tiene picks registrados.</p>'}</div>`;
  $('profileModal').hidden=false;
  $('profileModal').querySelector('[data-close-profile]').focus();
 }
