@@ -511,6 +511,7 @@ html[data-theme="light"] .theme-menu-btn{background:#edf4fc;color:#203b53;border
 .theme-menu-btn{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 14px;margin:0 0 12px;border:1px solid #46617c;border-radius:10px;background:#1b3046;color:#f3f7ff;font-weight:800;text-align:left}
 .theme-menu-btn:hover{border-color:var(--lime)}.theme-menu-btn span:last-child{font-size:12px;opacity:.8}
 </style><style id="athlete-prop-photos-v1">
+.athlete-photo-fallback{display:inline-grid;place-items:center;width:49px;height:49px;flex:none;border:1px solid #5b91b5;border-radius:11px;background:#20364c;font-size:25px}.athlete-photo-fallback[hidden]{display:none!important}
 .athlete-prop{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
 .athlete-prop-photo{width:49px;height:49px;border-radius:11px;object-fit:cover;object-position:center top;flex:none;border:1px solid #5b91b5;background:#20364c}
 .athlete-prop-label{text-align:left;min-width:0}.athlete-prop-name{display:block;font-size:13px;font-weight:850}.athlete-prop-market{display:block;font-size:12px;color:#d2e8ff;margin-top:2px}
@@ -844,11 +845,16 @@ const nflPhotoIndex=new Map(Object.entries(NFL_PHOTO_SEED));
 let nflCatalogPromise=null;
 const nflNormalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
 function athleteFromPick(selection,league){
- if(!/\bnfl\b|national football league/i.test(String(league||'')))return null;
+ if(!/nfl|football americano|fútbol americano/i.test(String(league||'')))return null;
  const raw=String(selection||'').trim();
- // Require a player name followed by a numeric line and a player-stat market.
- const m=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’-]*){1,3})\s+(?:(?:over|under|más de|menos de|mas de)\s+)?[+\-]?\d+(?:[.,]\d+)?\s*(?:rec(?:eptions?|epciones?)?|receiving|receptions?|yards?|yds?|rush(?:ing)?|pass(?:ing)?|completions?|attempts?|tds?|touchdowns?|catches|carries|interceptions?|tackles?|sacks?|targets?)\b/i);
- return m?m[1].trim():null;
+ // Support: Cooper Kupp +3.5 Rec, Cooper Kupp over 3.5 receptions,
+ // Cooper Kupp 4+ receptions, Cooper Kupp - Más de 3.5 recepciones.
+ const stat=/(?:rec(?:eptions?|epciones?|eiving)?|recepciones?|yards?|yds?|rush(?:ing)?|pass(?:ing)?|completions?|attempts?|tds?|touchdowns?|catches|carries|interceptions?|tackles?|sacks?|targets?|pases?|acarreos?|anotaciones?)\b/i;
+ if(!stat.test(raw))return null;
+ const match=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*){1,3})\s+(?:(?:[-–—:]\s*)?(?:over|under|más de|menos de|mas de)\s+)?[+\-]?\d/i);
+ if(match)return match[1].trim();
+ const alternate=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*){1,3})\s*[-–—:]\s*(?:over|under|más de|menos de|mas de)\s+\d/i);
+ return alternate?alternate[1].trim():null;
 }
 function nflAddAthlete(a,team){
  if(!a||!a.id||!a.fullName&&!a.displayName)return;
@@ -871,13 +877,13 @@ let nflRosterPromise=null;
 async function nflLoadRosters(){
  if(nflRosterPromise)return nflRosterPromise;
  nflRosterPromise=(async()=>{
-  const key='survivor-nfl-roster-v1';
+  const key='survivor-nfl-roster-v2';
   try{const cached=JSON.parse(localStorage.getItem(key)||'null');if(cached&&Date.now()-cached.at<7*86400000&&cached.players?.length>100){cached.players.forEach(a=>nflAddAthlete(a,a.team));return;}}catch(_e){}
   const players=[];let next=0;
   async function worker(){while(next<NFL_TEAMS.length){const team=NFL_TEAMS[next++];try{
    const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${team}/roster`);
    if(!r.ok)continue;const data=await r.json();
-   for(const group of data.athletes||[]){for(const a of (Array.isArray(group)?group:group.items||[])){
+   for(const group of data.athletes||[]){for(const a of (Array.isArray(group)?group:group.items||group.athletes||[])){
     if(a.id&&(a.fullName||a.displayName)){const entry={id:String(a.id),fullName:a.fullName||a.displayName,displayName:a.displayName,shortName:a.shortName,team,headshot:a.headshot};players.push(entry);nflAddAthlete(entry,team)}
    }}
   }catch(_e){}}}
@@ -894,7 +900,7 @@ function athletePropMarkup(selection,league){
  const name=athleteFromPick(selection,league);
  if(!name)return explainPick({selection,league},true);
  const market=String(selection).slice(name.length).trim();
- return `<span class="athlete-prop" data-athlete-name="${esc(name)}"><img class="athlete-prop-photo" alt="Foto de ${esc(name)}" loading="lazy" hidden><span class="athlete-prop-label"><span class="athlete-prop-name">${esc(name)}</span><span class="athlete-prop-market">${esc(market)}</span></span></span>`;
+ return `<span class="athlete-prop" data-athlete-name="${esc(name)}"><img class="athlete-prop-photo" alt="Foto de ${esc(name)}" loading="lazy" hidden><span class="athlete-photo-fallback" aria-hidden="true">🏈</span><span class="athlete-prop-label"><span class="athlete-prop-name">${esc(name)}</span><span class="athlete-prop-market">${esc(market)}</span></span></span>`;
 }
 let nflPhotosUpdating=false;
 async function loadAthletePhotos(){
@@ -905,7 +911,7 @@ async function loadAthletePhotos(){
   if(nodes.some(n=>!nflFind(n.dataset.athleteName)))await nflLoadRosters();
   nodes=[...document.querySelectorAll('.athlete-prop[data-athlete-name]')];
   for(const node of nodes){const entry=nflFind(node.dataset.athleteName);const img=node.querySelector('img');if(!img)continue;
-   if(entry){const url=entry.photo||`https://a.espncdn.com/i/headshots/nfl/players/full/${encodeURIComponent(entry.id)}.png`;if(img.src!==url){img.onerror=()=>{img.hidden=true};img.onload=()=>{img.hidden=false};img.src=url;}}
+   if(entry){const url=entry.photo||`https://a.espncdn.com/i/headshots/nfl/players/full/${encodeURIComponent(entry.id)}.png`;if(img.src!==url){img.onerror=()=>{img.hidden=true;node.querySelector(".athlete-photo-fallback")?.removeAttribute("hidden")};img.onload=()=>{img.hidden=false;node.querySelector(".athlete-photo-fallback")?.setAttribute("hidden","")};img.src=url;}}
    else img.hidden=true;
   }
  }finally{nflPhotosUpdating=false;}
