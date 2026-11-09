@@ -527,7 +527,7 @@ html[data-theme="light"] .theme-menu-btn{background:#edf4fc;color:#203b53;border
 .picktile.loss .athlete-prop-photo{border-color:#ff9bad!important;box-shadow:0 0 0 3px #74384c,0 5px 15px #0006,0 0 14px #ff657955!important}
 @media(max-width:700px){.athlete-prop{min-height:57px;padding:5px 8px 5px 5px;gap:10px;margin-inline:0;border-radius:12px}.athlete-prop-photo,.athlete-photo-fallback{width:47px!important;height:47px!important;border-radius:11px!important}.athlete-prop-name{font-size:12px}.athlete-prop-market{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.athlete-prop-photo{transition:none!important}}
-</style></head><body><style id="survivor-access-css">
+</style><style id="fury-loser-team-logos-v6">.fury-loss-team-list-title{margin:15px 0 9px;color:#ffb3c0;font-size:12px;font-weight:800}.fury-loss-team-list{display:grid;gap:8px}.fury-loss-team-row{display:flex;align-items:center;gap:10px;padding:9px 11px;background:#491f3038;border:1px solid #b04b654d;border-radius:10px}.fury-loss-logo-wrap{width:40px;height:40px;flex:none;display:grid;place-items:center}.fury-loss-team-logo{width:38px;height:38px;object-fit:contain}.fury-loss-logo-fallback{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#3d3548;color:#ffd4dd;font-size:12px;font-weight:850;flex:none}.fury-loss-team-info{min-width:0;display:flex;flex-direction:column;gap:3px}.fury-loss-team-info strong{color:#ff9aae;font-size:13px}.fury-loss-team-info small{color:#d7c4d1;font-size:11px;overflow-wrap:anywhere}</style></head><body><style id="survivor-access-css">
 body.access-locked>.wrap{display:none!important}#survivorAccessOverlay[hidden]{display:none!important}
 #survivorAccessOverlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:linear-gradient(180deg,rgba(3,8,16,.62),rgba(3,8,16,.78)),url("./icon-512.png") center center / cover no-repeat #070d17;padding:20px}
 #survivorAccessBox{width:min(420px,100%);padding:30px;border:1px solid #8ed65a88;border-radius:20px;background:rgba(7,18,30,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 25px 90px #000c,0 0 40px #b6f76b1a;text-align:center}
@@ -1155,7 +1155,7 @@ const byId=id=>document.getElementById(id);
 let currentText='', currentWeek=null, requestSerial=0;
 const configured=()=>!CHISME_API_URL.includes('YOUR-CHISME-WORKER');
 function setStatus(msg){byId('chismeStatus').textContent=msg}
-function show(data){const fallback=byId('chismeWhatsappFallback');if(fallback)fallback.hidden=true;currentText=String(data?.text||'');window.__furyRecapLosers=Array.isArray(data?.loserPicks)?data.loserPicks:[];byId('chismeText').textContent=currentText;byId('chismeShare').disabled=!currentText;setStatus(currentText?(data.cached?'📦 Crónica guardada · ':'🔥 Crónica nueva · ')+'Semana '+data.week:'Todavía no hay crónica para esta semana.')}
+function show(data){const fallback=byId('chismeWhatsappFallback');if(fallback)fallback.hidden=true;currentText=String(data?.text||'');byId('chismeText').textContent=currentText;window.dispatchEvent(new CustomEvent('fury-recap-data',{detail:data}));byId('chismeShare').disabled=!currentText;setStatus(currentText?(data.cached?'📦 Crónica guardada · ':'🔥 Crónica nueva · ')+'Semana '+data.week:'Todavía no hay crónica para esta semana.')}
 async function fetchRecap(generate=false){
  const week=Number(byId('week').value), serial=++requestSerial;currentWeek=week;byId('newspaperEditionWeek').textContent='SEMANA '+week;
  if(!configured()){setStatus('Configura la dirección del Worker en CHISME_API_URL para activar FURY AI.');return}
@@ -1187,30 +1187,41 @@ byId('chismeShare').addEventListener('click',async()=>{
  const fallback=byId('chismeWhatsappFallback');if(fallback){fallback.href=href;fallback.hidden=false;}
 });
 window.addEventListener('DOMContentLoaded',()=>fetchRecap());
-})();</script><style id="fury-loser-logos-v6">
-.recap-loser-entry{margin:12px 0;padding:11px 13px;border-left:3px solid #e55b70;background:#faeeee;border-radius:10px;color:#27303a}
-.recap-loser-head{display:flex;align-items:center;gap:10px;font-size:15px;flex-wrap:wrap}
-.recap-loss-team{width:42px;height:42px;flex:none;display:inline-grid;place-items:center;border-radius:10px;background:white;border:1px solid #e6ccd1}
-.recap-loss-team-logo{width:36px;height:36px;object-fit:contain}
-.recap-loss-logo-fallback{font-size:12px;font-weight:900;color:#9b4b5c}
-.recap-loser-pick{margin:4px 0 0 52px;font-size:12px;color:#805663}
-.recap-loser-entry p{margin:7px 0 0!important;white-space:pre-wrap}
-@media(max-width:600px){.recap-loss-team{width:34px;height:34px}.recap-loss-team-logo{width:29px;height:29px}.recap-loser-pick{margin-left:44px}}
-</style><script id="fury-recap-card-renderer-v6">(()=>{'use strict';
+})();</script><script id="fury-recap-card-renderer-v6">(()=>{'use strict';
 const target=document.getElementById('chismeText');if(!target)return;
-const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-const headings=[['recap-win',/los cabrones que si acertaron|ganadores|triunfadores/],['recap-loss',/el panteon|panteon de los picks|perdedores|cementerio/],['recap-roast',/pendejada de la semana/],['recap-quote',/frase de la jornada/],['recap-pending',/los que siguen en espera|proximos difuntos/]];
-function sectionType(s){const n=norm(s);for(const [type,re] of headings)if(re.test(n))return type;return ''}
-function isHeading(s){return sectionType(s)||(/^[^.!?]{4,85}:$/.test(s)&&/^(?:🗞️|🔥|🎤|🍿|🤡)/u.test(s))}
-function getLoser(name){return (window.__furyRecapLosers||[]).find(p=>norm(p.player)===norm(name))}
-function teamNames(match){return String(match||'').split(/\s+(?:vs\.?|v\.?|@|contra)\s+/i).map(x=>x.trim()).filter(Boolean)}
-function pickTeam(p){const teams=teamNames(p.match);if(!teams.length)return '';if(teams.length===1)return teams[0];const sel=norm(p.selection);return teams.find(t=>sel.includes(norm(t)))||teams[0]}
-function crest(team,league){try{return window.survivorTeamCrest?.(team,league)||''}catch{return ''}}
-function addLogo(parent,p){const team=pickTeam(p);if(!team)return;const container=document.createElement('span');container.className='recap-loss-team';container.title=team;const url=crest(team,p.league||'');const fallback=document.createElement('span');fallback.className='recap-loss-logo-fallback';fallback.textContent=team.slice(0,2).toUpperCase();if(url){const img=document.createElement('img');img.className='recap-loss-team-logo';img.alt='Escudo de '+team;img.loading='lazy';img.src=url;img.onerror=()=>img.replaceWith(fallback);container.append(img)}else container.append(fallback);parent.append(container)}
-function appendParagraph(parent,text){const p=document.createElement('p');p.textContent=text;parent.append(p)}
-function renderLoss(card,lines){let current=null;for(const line of lines){const m=line.match(/^🔴\s*\*?(.+?)\*?\s*$/u);if(m){const name=m[1].replace(/\*+$/,'').replace(/\s*·\s*👑\s*CAMPE[ÓO]N/i,'').trim();const entry=document.createElement('div');entry.className='recap-loser-entry';const head=document.createElement('div');head.className='recap-loser-head';const p=getLoser(name);if(p)addLogo(head,p);const title=document.createElement('strong');title.textContent='🔴 '+name;head.append(title);entry.append(head);if(p){const info=document.createElement('div');info.className='recap-loser-pick';info.textContent=p.selection||p.match;entry.append(info)}card.append(entry);current=entry}else appendParagraph(current||card,line)}}
-function render(raw){target.replaceChildren();if(!raw.trim())return;const lines=raw.replace(/\r/g,'').split('\n').map(x=>x.trim()).filter(Boolean);const sections=[];for(const line of lines){if(isHeading(line)){sections.push({title:line,body:[]})}else if(sections.length)sections[sections.length-1].body.push(line);else sections.push({title:'🔥 El desmadre de la jornada',body:[line]})}for(let i=0;i<sections.length;i++){const sec=sections[i],type=sectionType(sec.title);const card=document.createElement('section');card.className='recap-story '+(type||(i===0?'recap-intro':''));const h=document.createElement('h4');h.textContent=sec.title;card.append(h);if(type==='recap-loss')renderLoss(card,sec.body);else sec.body.forEach(line=>appendParagraph(card,line));target.append(card)}}
-let last='';const observer=new MutationObserver(()=>{if(target.querySelector('.recap-story'))return;const raw=target.textContent||'';if(raw===last)return;last=raw;render(raw)});observer.observe(target,{childList:true,characterData:true,subtree:true});if(target.textContent.trim()){last=target.textContent;render(last)}
+let rawText='',loserPicks=[];
+const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sections=[['win',/los cabrones que si acertaron|ganadores|triunfadores/],['loss',/panteon de los picks pendejos|panteon|perdedores|cementerio/],['roast',/pendejada de la semana/],['pending',/proximos difuntos|siguen en espera/],['quote',/frase de la jornada/]];
+function type(line){const n=normalize(line);return sections.find(([,r])=>r.test(n))?.[0]||''}
+function heading(line){return /^(?:🏆|💀|🤡|🍿|🎤|🗞️|🔥)/u.test(line)&&!!type(line)||/^[^.!?]{5,85}:$/.test(line)&&!!type(line)}
+function teamFromPick(p){
+ const match=String(p.match||'').split(/\s+(?:vs\.?|v\.?|@| - )\s+/i).map(x=>x.trim()).filter(Boolean);
+ const sel=normalize(p.selection),candidates=match.filter(t=>sel.includes(normalize(t)));
+ if(candidates.length===1)return candidates[0];
+ // Avoid inventing which team was picked for totals, BTTS or ambiguous selections.
+ if(match.length===2&&/^(?:1|home|local|equipo 1)\b/i.test(String(p.selection||'')))return match[0];
+ if(match.length===2&&/^(?:2|away|visitante|equipo 2)\b/i.test(String(p.selection||'')))return match[1];
+ return '';
+}
+function logo(team,league){
+ if(!team)return null;
+ const el=document.createElement('span');el.className='fury-loss-logo-wrap';el.title=team;
+ let url='';try{url=window.survivorTeamCrest?.(team,league)||''}catch(e){}
+ const fallback=document.createElement('span');fallback.className='fury-loss-logo-fallback';fallback.textContent=team.split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();
+ if(url){const img=document.createElement('img');img.className='fury-loss-team-logo';img.src=url;img.alt='Escudo de '+team;img.loading='lazy';img.onerror=()=>img.replaceWith(fallback);el.append(img)}else el.append(fallback);
+ return el;
+}
+function addLosers(section){
+ if(!loserPicks.length)return;
+ const title=document.createElement('div');title.className='fury-loss-team-list-title';title.textContent='⚽ Equipos de los picks perdidos';section.append(title);
+ const list=document.createElement('div');list.className='fury-loss-team-list';
+ for(const p of loserPicks){const row=document.createElement('div');row.className='fury-loss-team-row';const team=teamFromPick(p);const badge=logo(team,p.league);if(badge)row.append(badge);else {const x=document.createElement('span');x.className='fury-loss-logo-fallback';x.textContent='⚽';row.append(x)}
+ const info=document.createElement('div');info.className='fury-loss-team-info';const player=document.createElement('strong');player.textContent='🔴 '+String(p.player||'').toUpperCase();const desc=document.createElement('small');desc.textContent=String(p.selection||'')+(p.match?' · '+p.match:'');info.append(player,desc);row.append(info);list.append(row)}section.append(list);
+}
+function render(){if(!rawText.trim()){target.replaceChildren();return}target.replaceChildren();const lines=rawText.replace(/\r/g,'').split('\n');let card=null,kind='';for(const line of lines){const t=line.trim();if(!t)continue;if(heading(t)){kind=type(t);card=document.createElement('section');card.className='recap-story recap-'+kind;const h=document.createElement('h4');h.textContent=t;card.append(h);target.append(card);continue}if(!card){card=document.createElement('section');card.className='recap-story recap-intro';target.append(card)}const p=document.createElement('p');p.textContent=t;card.append(p)}const loss=target.querySelector('.recap-loss');if(loss)addLosers(loss)}
+window.addEventListener('fury-recap-data',e=>{const d=e.detail||{};rawText=String(d.text||'');loserPicks=Array.isArray(d.loserPicks)?d.loserPicks.filter(x=>x&&typeof x==='object'):[];render()});
+// No changes to the existing fixture/schedule/team logo rendering.
 })();</script><script id="survivor-theme-switch">
 (function(){
   const key='survivor-theme';
