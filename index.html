@@ -527,7 +527,7 @@ html[data-theme="light"] .theme-menu-btn{background:#edf4fc;color:#203b53;border
 .picktile.loss .athlete-prop-photo{border-color:#ff9bad!important;box-shadow:0 0 0 3px #74384c,0 5px 15px #0006,0 0 14px #ff657955!important}
 @media(max-width:700px){.athlete-prop{min-height:57px;padding:5px 8px 5px 5px;gap:10px;margin-inline:0;border-radius:12px}.athlete-prop-photo,.athlete-photo-fallback{width:47px!important;height:47px!important;border-radius:11px!important}.athlete-prop-name{font-size:12px}.athlete-prop-market{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.athlete-prop-photo{transition:none!important}}
-</style></head><body><style id="survivor-access-css">
+</style><style id="fury-recap-inline-crest-v7">.fury-recap-pick-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.fury-pick-crest{width:29px;height:29px;display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:7px;background:#ffffff12;border:1px solid #ffffff2b;padding:3px}.fury-pick-crest img{width:100%;height:100%;object-fit:contain}.fury-pick-crest-fallback{font-size:10px;font-weight:900;color:#d9e8f7}.fury-recap-pick-line>span:last-child{flex:1;min-width:180px}@media(max-width:600px){.fury-pick-crest{width:25px;height:25px}}</style></head><body><style id="survivor-access-css">
 body.access-locked>.wrap{display:none!important}#survivorAccessOverlay[hidden]{display:none!important}
 #survivorAccessOverlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:linear-gradient(180deg,rgba(3,8,16,.62),rgba(3,8,16,.78)),url("./icon-512.png") center center / cover no-repeat #070d17;padding:20px}
 #survivorAccessBox{width:min(420px,100%);padding:30px;border:1px solid #8ed65a88;border-radius:20px;background:rgba(7,18,30,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 25px 90px #000c,0 0 40px #b6f76b1a;text-align:center}
@@ -601,7 +601,7 @@ const lossesBefore=(p,w=Infinity,exclude=null)=>records.filter(r=>r.player===p&&
  const eliminated=(p,w=Infinity,exclude=null)=>livesLeft(p,w,exclude)===0;
 const alive=p=>!eliminated(p);
 function options(el,vals){el.innerHTML=vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')}
-function weekOptions(){const vals=[...new Set([...Array.from({length:25},(_,i)=>i+1),...records.map(r=>Number(r.week))])].sort((a,b)=>a-b);const prev=$('week').value||'1';options($('week'),vals);$('week').value=vals.includes(Number(prev))?prev:'1';options($('formWeek'),vals)}
+function weekOptions(){const vals=[...new Set([...Array.from({length:25},(_,i)=>i+1),...records.map(r=>Number(r.week))])].sort((a,b)=>a-b);const prev=$('week').value||'2';options($('week'),vals);$('week').value=vals.includes(Number(prev))?prev:'2';options($('formWeek'),vals)}
 const HIDDEN_PLAYERS=new Set(['luis aguilar','edgar']); // Removed from active roster; historical picks remain stored.
 const isHiddenPlayer=name=>HIDDEN_PLAYERS.has(String(name||'').trim().toLocaleLowerCase('es'));
 function players(){const p=[...new Set([...PLAYERS,...remotePlayers,...records.map(r=>r.player)])].filter(v=>v&&!retiredPlayers.includes(v)&&!isHiddenPlayer(v)).sort((a,b)=>a.localeCompare(b,'es'));const selected=$('player').value,filter=$('filterPlayer').value;options($('player'),p);$('player').value=p.includes(selected)?selected:p[0];options($('filterPlayer'),['Todos',...p]);$('filterPlayer').value=p.includes(filter)?filter:'Todos';options($('pinPlayer'),p);options($('deletePlayer'),p)}
@@ -1155,7 +1155,7 @@ const byId=id=>document.getElementById(id);
 let currentText='', currentWeek=null, requestSerial=0;
 const configured=()=>!CHISME_API_URL.includes('YOUR-CHISME-WORKER');
 function setStatus(msg){byId('chismeStatus').textContent=msg}
-function show(data){const fallback=byId('chismeWhatsappFallback');if(fallback)fallback.hidden=true;currentText=String(data?.text||'');if(typeof window.furyRecapSetData==='function')window.furyRecapSetData(data);byId('chismeText').textContent=currentText;byId('chismeShare').disabled=!currentText;setStatus(currentText?(data.cached?'📦 Crónica guardada · ':'🔥 Crónica nueva · ')+'Semana '+data.week:'Todavía no hay crónica para esta semana.')}
+function show(data){const fallback=byId('chismeWhatsappFallback');if(fallback)fallback.hidden=true;currentText=String(data?.text||'');window.__furyRecapMeta={winnerPicks:Array.isArray(data?.winnerPicks)?data.winnerPicks:[],loserPicks:Array.isArray(data?.loserPicks)?data.loserPicks:[]};byId('chismeText').textContent=currentText;byId('chismeShare').disabled=!currentText;setStatus(currentText?(data.cached?'📦 Crónica guardada · ':'🔥 Crónica nueva · ')+'Semana '+data.week:'Todavía no hay crónica para esta semana.')}
 async function fetchRecap(generate=false){
  const week=Number(byId('week').value), serial=++requestSerial;currentWeek=week;byId('newspaperEditionWeek').textContent='SEMANA '+week;
  if(!configured()){setStatus('Configura la dirección del Worker en CHISME_API_URL para activar FURY AI.');return}
@@ -1187,23 +1187,44 @@ byId('chismeShare').addEventListener('click',async()=>{
  const fallback=byId('chismeWhatsappFallback');if(fallback){fallback.href=href;fallback.hidden=false;}
 });
 window.addEventListener('DOMContentLoaded',()=>fetchRecap());
-})();</script><style id="fury-recap-entry-logos-v6">.recap-pick-entry{display:flex;align-items:flex-start;gap:10px;max-width:none!important}.recap-entry-logos{display:inline-flex;align-items:center;gap:4px;flex:none;min-width:0}.recap-entry-logos .recap-logo{width:34px;height:34px;margin:0;border-radius:8px;object-fit:contain}.recap-pick-entry>span:last-child{flex:1;min-width:0;white-space:pre-wrap}@media(max-width:600px){.recap-entry-logos .recap-logo{width:27px;height:27px}.recap-pick-entry{gap:7px}}</style><script id="fury-recap-card-renderer-v5">(()=>{'use strict';
+})();</script><script id="fury-recap-card-renderer-v7">(()=>{'use strict';
 const target=document.getElementById('chismeText');if(!target)return;
-const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-const heading=/^(?:[🗞️🔥🏆💀🤡🍿🎤🎙️🎯🚑📢🥇🥈⚽🏈\s]*)?(?:LOS |LAS |EL |LA |FRASE |CIERRE |PREMIO |PANTEON |PANTEÓN |PRÓXIMOS |PROXIMOS |QUÉ |QUE |¡)/i;
-function classify(t){const n=normalize(t);if(/acertaron|ganadores|si hicieron|si acertaron|cabrones que si|triunfadores/.test(n))return 'recap-win';if(/panteon|perdieron|perdedores|picks pendejos|cementerio/.test(n))return 'recap-loss';if(/pendejada|cagada|ridiculo|oso de la semana/.test(n))return 'recap-roast';if(/frase de la jornada|frase de la semana/.test(n))return 'recap-quote';return ''}
-let recapData=null, rawText='';
-window.furyRecapSetData=function(data){recapData=data||null;if(rawText&&target.querySelector('.recap-story'))render(rawText)};
-function nameOf(line){const m=String(line).match(/^[🟢🔴✅❌☠️💀\s]*\*{0,2}\s*([^*\n:]+?)\s*\*{0,2}(?:\s*[:—–-]|$)/u);return m?normalize(m[1].replace(/\s*[·|]\s*👑\s*CAMPE[ÓO]N.*/i,'')):''}
-function schedulePicks(kind){return [...document.querySelectorAll('#schedule .picktile.'+kind)].map(tile=>({player:normalize(tile.querySelector('.tileplayer')?.textContent||''),tile,match:tile.querySelector('.schedule-match')?.textContent||'',selection:tile.querySelector('.schedule-pick-center')?.textContent||''}));}
-function pickFor(line,kind){const n=nameOf(line);if(!n)return null;const all=schedulePicks(kind);return all.find(p=>p.player===n)||all.find(p=>p.player&&n.startsWith(p.player+' '))||null}
-function crest(name,league){try{return typeof window.survivorTeamCrest==='function'?window.survivorTeamCrest(name,league||''):''}catch{return ''}}
-function makeLogo(url,label){const img=document.createElement('img');img.className='recap-logo';img.src=url;img.alt=label||'Escudo del equipo';img.title=label||'Equipo del pick';img.loading='lazy';img.onerror=()=>img.remove();return img}
-function logosFromSchedule(p){const images=[...p.tile.querySelectorAll('.schedule-match img.team-badge:not([hidden])')];return images.filter(img=>img.getAttribute('src')).slice(0,2).map(img=>makeLogo(img.currentSrc||img.src,img.closest('.team-fixture')?.textContent?.trim()||p.match))}
-function logosFromMetadata(player,kind){const list=kind==='win'?(recapData?.winnerPicks||[]):(recapData?.loserPicks||[]);const pick=list.find(p=>normalize(p.player)===player);if(!pick)return [];const match=String(pick.match||'');const parts=match.split(/\s+(?:vs\.?|v\.?|@|contra)\s+/i).map(x=>x.trim()).filter(Boolean);return parts.slice(0,2).map(team=>{const url=crest(team,pick.league);return url?makeLogo(url,team):null}).filter(Boolean)}
-function addEntry(card,line,kind){const p=document.createElement('p');p.className='recap-pick-entry';const player=nameOf(line);const pick=pickFor(line,kind);let logos=pick?logosFromSchedule(pick):[];if(!logos.length&&player)logos=logosFromMetadata(player,kind);if(logos.length){const bar=document.createElement('span');bar.className='recap-entry-logos';for(const img of logos)bar.append(img);p.append(bar)}const content=document.createElement('span');content.textContent=line;p.append(content);card.append(p)}
-function render(raw){rawText=String(raw||'');target.replaceChildren();if(!rawText.trim())return;const blocks=rawText.replace(/\r/g,'').split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);let sections=[];for(const block of blocks){const lines=block.split('\n').map(x=>x.trim()).filter(Boolean);for(const line of lines){const colon=line.indexOf(':');const isTitle=(colon>=0&&colon<85&&heading.test(line))||(/^[^.!?]{4,75}:$/.test(line)&&heading.test(line));if(isTitle){sections.push({title:line.slice(0,colon+1),body:line.slice(colon+1).trim()?[line.slice(colon+1).trim()]:[]})}else if(sections.length)sections[sections.length-1].body.push(line);else sections.push({title:'🔥 El desmadre de la jornada',body:[line]})}}
-sections.forEach((sec,i)=>{const card=document.createElement('section');const kind=classify(sec.title);card.className='recap-story '+(kind||(i===0?'recap-intro':''));const h=document.createElement('h4');h.textContent=sec.title;card.append(h);for(const line of sec.body){if((kind==='recap-win'||kind==='recap-loss')&&nameOf(line))addEntry(card,line,kind==='recap-win'?'win':'loss');else{const p=document.createElement('p');p.textContent=line;card.append(p)}}target.append(card)})}
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const aliases=[['Bayern Munich',['bayern munich','bayern']],['AS Roma',['roma']],['Cruz Azul',['cruz azul']],['Inter Milan',['inter milan','inter']],['Feyenoord',['feyenoord']],['Monterrey',['monterrey']],['Goias',['goias']],['Green Bay Packers',['packers','green bay']],['New England Patriots',['patriots','new england']],['Mainz',['mainz']],['Sassuolo',['sassuolo']],['Tigres UANL',['tigres']],['Toluca',['toluca']],['Como',['como']],['Heerenveen',['heerenveen']],['Chelsea',['chelsea']],['Arsenal',['arsenal']],['Real Madrid',['real madrid']],['Barcelona',['barcelona']],['Kansas City Chiefs',['chiefs','kansas city']],['San Francisco 49ers',['49ers','san francisco']],['Liverpool',['liverpool']],['Manchester City',['manchester city','man city']]];
+function type(title){const n=norm(title);if(/acertaron|ganadores|triunfadores/.test(n))return 'recap-win';if(/panteon|perdieron|perdedores|picks pendejos/.test(n))return 'recap-loss';if(/pendejada|cagada|ridiculo/.test(n))return 'recap-roast';if(/frase de la jornada|frase de la semana/.test(n))return 'recap-quote';return ''}
+function getTeams(line,kind){
+ const metadata=(window.__furyRecapMeta||{})[kind==='recap-win'?'winnerPicks':'loserPicks']||[];
+ const n=norm(line);let pick=metadata.find(p=>p.player&&n.includes(norm(p.player))&&p.selection&&n.includes(norm(p.selection)));
+ if(!pick)pick=metadata.find(p=>p.player&&n.includes(norm(p.player)));
+ if(pick){if(pick.team)return [{name:pick.team,league:pick.league||''}];
+  const selection=norm(pick.selection), match=String(pick.match||'');const sides=match.split(/\s+(?:vs\.?|v\.?|@)\s+/i);
+  const found=sides.filter(t=>selection.includes(norm(t))&&norm(t).length>2);
+  if(found.length===1)return [{name:found[0],league:pick.league||''}];
+ }
+ // For market picks like 'Ambos anotan' show both teams rather than inventing a chosen side.
+ const matchText=pick?.match||line;const parts=matchText.split(/\s+(?:vs\.?|v\.?|@)\s+/i);
+ if(parts.length===2){const first=parts[0].split(/[—–]/).pop().trim(),second=parts[1].split(/[.!?]/)[0].trim();if(first&&second){const a=aliases.find(([name,arr])=>arr.some(x=>norm(first).includes(norm(x))));const b=aliases.find(([name,arr])=>arr.some(x=>norm(second).includes(norm(x))));if(a&&b)return [{name:a[0],league:pick?.league||''},{name:b[0],league:pick?.league||''}];}}
+ const selection=norm(pick?.selection||line.split('—')[1]||'');
+ const found=aliases.filter(([name,arr])=>arr.some(x=>selection.includes(norm(x))));
+ return found.length===1?[{name:found[0],league:pick?.league||''}]:[];
+}
+function logo(team){const holder=document.createElement('span');holder.className='fury-pick-crest';holder.title=team.name;
+ const fallback=document.createElement('span');fallback.className='fury-pick-crest-fallback';fallback.textContent=team.name.slice(0,2).toUpperCase();
+ let url='';try{url=window.survivorTeamCrest?.(team.name,team.league)||''}catch(e){}
+ if(!url){holder.append(fallback);return holder;}
+ const img=document.createElement('img');img.alt=team.name;img.src=url;img.loading='lazy';img.onerror=()=>img.replaceWith(fallback);holder.append(img);return holder;
+}
+function render(raw){target.replaceChildren();if(!raw.trim())return;
+ let section=null;let kind='';const lines=raw.replace(/\r/g,'').split('\n');
+ for(const original of lines){const line=original.trim();if(!line)continue;
+ const colon=line.indexOf(':');const isHeading=colon>=0&&colon<95&&(/^[🗞️🔥🏆💀🤡🍿🎤🎙️🎯\s]/u.test(line)||/^(LOS|LAS|EL|LA|FRASE|CIERRE)/i.test(line))&&line.slice(0,colon).length<95;
+ if(isHeading){section=document.createElement('section');kind=type(line.slice(0,colon));section.className='recap-story '+(kind||(!target.children.length?'recap-intro':''));const h=document.createElement('h4');h.textContent=line.slice(0,colon+1);section.append(h);target.append(section);const rest=line.slice(colon+1).trim();if(!rest)continue;addLine(rest);continue;}
+ if(!section){section=document.createElement('section');section.className='recap-story recap-intro';target.append(section)}addLine(line);
+ }
+ function addLine(line){const isPick=(kind==='recap-win'&&/^🟢/u.test(line))||(kind==='recap-loss'&&/^🔴/u.test(line));const p=document.createElement('p');p.className=isPick?'fury-recap-pick-line':'';
+ if(isPick){const logos=getTeams(line,kind);for(const t of logos)p.append(logo(t));}
+ const span=document.createElement('span');span.textContent=line;p.append(span);section.append(p);}
+}
 let last='';const observer=new MutationObserver(()=>{if(target.querySelector('.recap-story'))return;const raw=target.textContent||'';if(raw===last)return;last=raw;render(raw)});observer.observe(target,{childList:true,characterData:true,subtree:true});if(target.textContent.trim()){last=target.textContent;render(last)}
 })();</script><script id="survivor-theme-switch">
 (function(){
