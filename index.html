@@ -718,7 +718,180 @@ function scCatalogLogoUrls(rec){
  if(rec.id!=null)urls.push('https://crests.football-data.org/'+encodeURIComponent(rec.id)+'.png');
  return [...new Set(urls)];
 }
+// National soccer teams: country flag assets, independent of club crest catalogs.
+// Country aliases cover English/Spanish names and common abbreviations.
+const scNationalCountries={
+ ar:['argentina'],au:['australia'],at:['austria'],be:['belgium','belgica'],bo:['bolivia'],br:['brazil','brasil'],ca:['canada'],cl:['chile'],cn:['china'],co:['colombia'],cr:['costa rica'],hr:['croatia','croacia'],cu:['cuba'],cz:['czech republic','czechia','republica checa','chequia','czech republic national team'],dk:['denmark','dinamarca'],do:['dominican republic','republica dominicana'],ec:['ecuador'],eg:['egypt','egipto'],sv:['el salvador'],gb:['united kingdom'],en:['england','inglaterra'],fi:['finland','finlandia'],fr:['france','francia'],de:['germany','alemania'],gh:['ghana'],gr:['greece','grecia'],gt:['guatemala'],ht:['haiti'],hn:['honduras'],hu:['hungary','hungria'],is:['iceland','islandia'],in:['india'],id:['indonesia'],ir:['iran'],iq:['iraq','irak'],ie:['ireland','republic of ireland','irlanda','republica de irlanda'],il:['israel'],it:['italy','italia'],jm:['jamaica'],jp:['japan','japon'],jo:['jordan','jordania'],kr:['south korea','korea republic','republic of korea','corea del sur','corea','korea'],kp:['north korea','corea del norte'],kw:['kuwait'],lb:['lebanon','libano'],my:['malaysia','malasia'],ma:['morocco','marruecos'],mx:['mexico','méxico'],nl:['netherlands','holanda','paises bajos','países bajos','the netherlands'],nz:['new zealand','nueva zelanda'],ng:['nigeria'],no:['norway','noruega'],pa:['panama','panamá'],py:['paraguay'],pe:['peru','perú'],ph:['philippines','filipinas'],pl:['poland','polonia'],pt:['portugal'],qa:['qatar','catar'],ro:['romania','rumania'],ru:['russia','rusia'],sa:['saudi arabia','arabia saudita','arabia saudi'],sn:['senegal'],rs:['serbia'],sk:['slovakia','eslovaquia'],si:['slovenia','eslovenia'],za:['south africa','sudafrica','sudáfrica'],es:['spain','espana','españa'],se:['sweden','suecia'],ch:['switzerland','suiza'],tn:['tunisia','tunez','túnez'],tr:['turkey','turkiye','turquia','turquía','türkiye'],ua:['ukraine','ucrania'],ae:['united arab emirates','emiratos arabes unidos'],us:['united states','usa','usmnt','estados unidos','eeuu','ee uu'],uy:['uruguay'],uz:['uzbekistan','uzbequistan'],ve:['venezuela'],vn:['vietnam'],wales:['wales','gales'],scotland:['scotland','escocia'],northernireland:['northern ireland','irlanda del norte','n ireland'],ci:['ivory coast','cote d ivoire','costa de marfil'],cm:['cameroon','camerun','camerún'],cd:['dr congo','congo dr','rd congo','republica democratica del congo'],ml:['mali','malí'],dz:['algeria','argelia'],bf:['burkina faso'],cv:['cape verde','cabo verde'],ga:['gabon','gabón'],gn:['guinea'],zm:['zambia'],zw:['zimbabwe','zimbabue'],ug:['uganda'],ke:['kenya','kenia','kenya national team','kenia seleccion'],tz:['tanzania'],ao:['angola'],mz:['mozambique'],mg:['madagascar'],ly:['libya','libia'],sd:['sudan','sudán'],et:['ethiopia','etiopia'],fo:['faroe islands','islas feroe','faroe'],sm:['san marino'],gi:['gibraltar'],ad:['andorra'],al:['albania'],ba:['bosnia and herzegovina','bosnia','bosnia y herzegovina','bosnia-herzegovina'],me:['montenegro'],mk:['north macedonia','macedonia del norte','macedonia'],ge:['georgia'],am:['armenia'],az:['azerbaijan','azerbaiyan','azerbaiyán'],by:['belarus','bielorrusia'],ee:['estonia'],lv:['latvia','letonia'],li:['liechtenstein','lichtenstein'],lt:['lithuania','lituania'],lu:['luxembourg','luxemburgo'],mt:['malta'],cy:['cyprus','chipre'],md:['moldova','moldavia','republic of moldova'],xk:['kosovo'],bh:['bahrain','barein'],om:['oman','omán'],sy:['syria','siria'],ps:['palestine','palestina'],th:['thailand','tailandia'],sg:['singapore','singapur'],tw:['taiwan','taiwán'],hk:['hong kong'],np:['nepal'],pk:['pakistan','paquistan'],bd:['bangladesh'],af:['afghanistan','afganistan'],kh:['cambodia','camboya'],mm:['myanmar','burma','birmania'],la:['laos'],ni:['nicaragua'],bz:['belize','belice'],tt:['trinidad and tobago','trinidad y tobago'],gy:['guyana'],sr:['suriname','surinam'],bs:['bahamas'],bb:['barbados'],gd:['grenada','granada'],ag:['antigua and barbuda','antigua y barbuda'],kn:['saint kitts and nevis','san cristobal y nieves'],lc:['saint lucia','santa lucia'],vc:['saint vincent and the grenadines','san vicente y las granadinas'],fj:['fiji','fiyi']
+};
+const scNationalLookup={};for(const [code,names] of Object.entries(scNationalCountries)){for(const name of names)scNationalLookup[scNorm(name)]=code;}
+function scNationalLogo(team,league){
+ const key=scNorm(team).replace(/^(?:seleccion nacional de|seleccion de|national team of|national team|seleccion nacional|seleccion) /,'').replace(/ (?:national team|seleccion nacional)$/,'').trim();
+ const code=scNationalLookup[key];if(!code)return '';
+ // Only classify country names as national teams, avoiding ambiguous club names in domestic leagues.
+ const lg=scNorm(league);
+ const internationalLeague=/nations|national|internacional|international|world cup|copa mundial|mundial|afcon|africa cup|copa africa|concacaf|uefa euro|eurocopa|amistoso|friendly|qualif|eliminatoria/.test(lg);
+ const clubLeague=!internationalLeague&&/premier|la liga|bundesliga|serie a|ligue 1|liga mx|mls|champions league|europa league|conference league|eredivisie|primeira liga/.test(lg);
+ if(clubLeague)return '';
+ const flags={en:'gb-eng',wales:'gb-wls',scotland:'gb-sct',northernireland:'gb-nir',xk:'xk'};
+ return 'https://flagcdn.com/'+(flags[code]||code)+'.svg';
+}
+
+// NCAA college football crests. Explicit school aliases avoid ambiguous mascot collisions.
+const SC_NCAA_TEAMS=[
+ [333, ["Alabama", "Alabama crimson tide", "crimson tide", "bama"]],
+ [61, ["Georgia", "Georgia bulldogs", "bulldogs"]],
+ [194, ["Ohio State", "Ohio State buckeyes", "buckeyes", "osu"]],
+ [130, ["Michigan", "Michigan wolverines", "wolverines"]],
+ [251, ["Texas", "Texas longhorns", "longhorns", "ut"]],
+ [245, ["Texas A&M", "Texas A&M aggies", "aggies", "tamu"]],
+ [201, ["Oklahoma", "Oklahoma sooners", "sooners", "ou"]],
+ [197, ["Oklahoma State", "Oklahoma State cowboys", "cowboys", "ok state"]],
+ [87, ["Notre Dame", "Notre Dame fighting irish", "fighting irish"]],
+ [30, ["USC", "USC trojans", "trojans", "southern california"]],
+ [26, ["UCLA", "UCLA bruins", "bruins"]],
+ [2483, ["Oregon", "Oregon ducks", "ducks"]],
+ [264, ["Washington", "Washington huskies", "huskies", "uw"]],
+ [213, ["Penn State", "Penn State nittany lions", "nittany lions", "psu"]],
+ [99, ["LSU", "LSU tigers", "tigers", "louisiana state"]],
+ [57, ["Florida", "Florida gators", "gators"]],
+ [52, ["Florida State", "Florida State seminoles", "seminoles", "fsu"]],
+ [2390, ["Miami", "Miami hurricanes", "hurricanes", "miami fl"]],
+ [228, ["Clemson", "Clemson tigers", "tigers"]],
+ [2633, ["Tennessee", "Tennessee volunteers", "volunteers", "vols"]],
+ [145, ["Ole Miss", "Ole Miss rebels", "rebels", "mississippi"]],
+ [344, ["Mississippi State", "Mississippi State bulldogs", "bulldogs"]],
+ [2, ["Auburn", "Auburn tigers", "tigers"]],
+ [8, ["Arkansas", "Arkansas razorbacks", "razorbacks"]],
+ [96, ["Kentucky", "Kentucky wildcats", "wildcats"]],
+ [2579, ["South Carolina", "South Carolina gamecocks", "gamecocks"]],
+ [238, ["Vanderbilt", "Vanderbilt commodores", "commodores"]],
+ [142, ["Missouri", "Missouri tigers", "tigers", "mizzou"]],
+ [2641, ["Texas Tech", "Texas Tech red raiders", "red raiders"]],
+ [2628, ["TCU", "TCU horned frogs", "horned frogs"]],
+ [239, ["Baylor", "Baylor bears", "bears"]],
+ [248, ["Houston", "Houston cougars", "cougars"]],
+ [252, ["BYU", "BYU cougars", "cougars", "brigham young"]],
+ [254, ["Utah", "Utah utes", "utes"]],
+ [12, ["Arizona", "Arizona wildcats", "wildcats"]],
+ [9, ["Arizona State", "Arizona State sun devils", "sun devils", "asu"]],
+ [38, ["Colorado", "Colorado buffaloes", "buffaloes", "buffs"]],
+ [2305, ["Kansas", "Kansas jayhawks", "jayhawks"]],
+ [2306, ["Kansas State", "Kansas State wildcats", "wildcats", "ksu"]],
+ [66, ["Iowa State", "Iowa State cyclones", "cyclones"]],
+ [2294, ["Iowa", "Iowa hawkeyes", "hawkeyes"]],
+ [158, ["Nebraska", "Nebraska cornhuskers", "cornhuskers"]],
+ [275, ["Wisconsin", "Wisconsin badgers", "badgers"]],
+ [135, ["Minnesota", "Minnesota golden gophers", "golden gophers"]],
+ [127, ["Michigan State", "Michigan State spartans", "spartans", "msu"]],
+ [84, ["Indiana", "Indiana hoosiers", "hoosiers"]],
+ [2509, ["Purdue", "Purdue boilermakers", "boilermakers"]],
+ [356, ["Illinois", "Illinois fighting illini", "fighting illini"]],
+ [77, ["Northwestern", "Northwestern wildcats", "wildcats"]],
+ [120, ["Maryland", "Maryland terrapins", "terrapins", "terps"]],
+ [164, ["Rutgers", "Rutgers scarlet knights", "scarlet knights"]],
+ [221, ["Pittsburgh", "Pittsburgh panthers", "panthers", "pitt"]],
+ [183, ["Syracuse", "Syracuse orange", "orange"]],
+ [103, ["Boston College", "Boston College eagles", "eagles"]],
+ [258, ["Virginia", "Virginia cavaliers", "cavaliers", "uva"]],
+ [259, ["Virginia Tech", "Virginia Tech hokies", "hokies", "vt"]],
+ [153, ["North Carolina", "North Carolina tar heels", "tar heels", "unc"]],
+ [152, ["NC State", "NC State wolfpack", "wolfpack", "north carolina state"]],
+ [150, ["Duke", "Duke blue devils", "blue devils"]],
+ [154, ["Wake Forest", "Wake Forest demon deacons", "demon deacons"]],
+ [59, ["Georgia Tech", "Georgia Tech yellow jackets", "yellow jackets"]],
+ [97, ["Louisville", "Louisville cardinals", "cardinals"]],
+ [2567, ["SMU", "SMU mustangs", "mustangs", "southern methodist"]],
+ [25, ["California", "California golden bears", "golden bears", "cal", "uc berkeley"]],
+ [24, ["Stanford", "Stanford cardinal", "cardinal"]],
+ [68, ["Boise State", "Boise State broncos", "broncos"]],
+ [278, ["Fresno State", "Fresno State bulldogs", "bulldogs"]],
+ [21, ["San Diego State", "San Diego State aztecs", "aztecs", "sdsu"]],
+ [23, ["San Jose State", "San Jose State spartans", "spartans", "sjsu", "san jos\u00e9 state"]],
+ [2439, ["UNLV", "UNLV rebels", "rebels"]],
+ [2440, ["Nevada", "Nevada wolf pack", "wolf pack"]],
+ [167, ["New Mexico", "New Mexico lobos", "lobos"]],
+ [166, ["New Mexico State", "New Mexico State aggies", "aggies"]],
+ [36, ["Colorado State", "Colorado State rams", "rams"]],
+ [2005, ["Air Force", "Air Force falcons", "falcons"]],
+ [2751, ["Wyoming", "Wyoming cowboys", "cowboys"]],
+ [328, ["Utah State", "Utah State aggies", "aggies"]],
+ [62, ["Hawaii", "Hawaii rainbow warriors", "rainbow warriors"]],
+ [204, ["Oregon State", "Oregon State beavers", "beavers"]],
+ [265, ["Washington State", "Washington State cougars", "cougars", "wsu"]],
+ [235, ["Memphis", "Memphis tigers", "tigers"]],
+ [2655, ["Tulane", "Tulane green wave", "green wave"]],
+ [2636, ["UTSA", "UTSA roadrunners", "roadrunners"]],
+ [5, ["UAB", "UAB blazers", "blazers"]],
+ [58, ["South Florida", "South Florida bulls", "bulls", "usf"]],
+ [151, ["East Carolina", "East Carolina pirates", "pirates", "ecu"]],
+ [2426, ["Navy", "Navy midshipmen", "midshipmen"]],
+ [349, ["Army", "Army black knights", "black knights", "army west point"]],
+ [218, ["Temple", "Temple owls", "owls"]],
+ [242, ["Rice", "Rice owls", "owls"]],
+ [202, ["Tulsa", "Tulsa golden hurricane", "golden hurricane"]],
+ [249, ["North Texas", "North Texas mean green", "mean green"]],
+ [2226, ["Florida Atlantic", "Florida Atlantic owls", "owls", "fau"]],
+ [2229, ["Florida International", "Florida International panthers", "panthers", "fiu"]],
+ [2429, ["Charlotte", "Charlotte 49ers", "49ers"]],
+ [2026, ["Appalachian State", "Appalachian State mountaineers", "mountaineers", "app state"]],
+ [324, ["Coastal Carolina", "Coastal Carolina chanticleers", "chanticleers"]],
+ [256, ["James Madison", "James Madison dukes", "dukes", "jmu"]],
+ [2335, ["Liberty", "Liberty flames", "flames"]],
+ [276, ["Marshall", "Marshall thundering herd", "thundering herd"]],
+ [295, ["Old Dominion", "Old Dominion monarchs", "monarchs", "odu"]],
+ [290, ["Georgia Southern", "Georgia Southern eagles", "eagles"]],
+ [2247, ["Georgia State", "Georgia State panthers", "panthers"]],
+ [2653, ["Troy", "Troy trojans", "trojans"]],
+ [6, ["South Alabama", "South Alabama jaguars", "jaguars"]],
+ [309, ["Louisiana", "Louisiana ragin cajuns", "ragin cajuns", "ul lafayette"]],
+ [2433, ["Louisiana Monroe", "Louisiana Monroe warhawks", "warhawks", "ulm"]],
+ [2572, ["Southern Miss", "Southern Miss golden eagles", "golden eagles", "southern mississippi"]],
+ [326, ["Texas State", "Texas State bobcats", "bobcats"]],
+ [98, ["Western Kentucky", "Western Kentucky hilltoppers", "hilltoppers", "wku"]],
+ [2393, ["Middle Tennessee", "Middle Tennessee blue raiders", "blue raiders", "mtsu"]],
+ [2348, ["Louisiana Tech", "Louisiana Tech bulldogs", "bulldogs"]],
+ [2534, ["Sam Houston", "Sam Houston bearkats", "bearkats", "sam houston state"]],
+ [55, ["Jacksonville State", "Jacksonville State gamecocks", "gamecocks"]],
+ [338, ["Kennesaw State", "Kennesaw State owls", "owls"]],
+ [41, ["Connecticut", "Connecticut huskies", "huskies", "uconn"]],
+ [113, ["Massachusetts", "Massachusetts minutemen", "minutemen", "umass"]],
+ [2084, ["Buffalo", "Buffalo bulls", "bulls"]],
+ [2006, ["Akron", "Akron zips", "zips"]],
+ [2050, ["Ball State", "Ball State cardinals", "cardinals"]],
+ [189, ["Bowling Green", "Bowling Green falcons", "falcons"]],
+ [2117, ["Central Michigan", "Central Michigan chippewas", "chippewas"]],
+ [2199, ["Eastern Michigan", "Eastern Michigan eagles", "eagles"]],
+ [2309, ["Kent State", "Kent State golden flashes", "golden flashes"]],
+ [193, ["Miami Ohio", "Miami Ohio redhawks", "redhawks", "miami oh"]],
+ [2459, ["Northern Illinois", "Northern Illinois huskies", "huskies", "niu"]],
+ [195, ["Ohio", "Ohio bobcats", "bobcats", "ohio university"]],
+ [2649, ["Toledo", "Toledo rockets", "rockets"]],
+ [2711, ["Western Michigan", "Western Michigan broncos", "broncos"]],
+ [48, ["Delaware", "Delaware blue hens", "blue hens"]],
+ [2623, ["Missouri State", "Missouri State bears", "bears"]]
+];
+const scNcaaLookup={};
+for(const [id,names] of SC_NCAA_TEAMS){for(const name of names){const k=scNorm(name);if(k && !(k in scNcaaLookup))scNcaaLookup[k]=id;}}
+function scNcaaLogo(team,league){
+ const lg=scNorm(league);
+ const isCollege=/ncaa|ncca|college football|college basketball|ncaaf|ncaab|cfb|fbs|fcs|bowl game|big ten|big 12|sec football|acc football|mountain west|sun belt|american athletic|conference usa|pac 12/.test(lg);
+ const key=scNorm(team).replace(/^(?:university of|universidad de) /,'');
+ let id=scNcaaLookup[key];
+ if(!id && isCollege){
+  // Match school prefix only when the league explicitly identifies college competition.
+  const ordered=Object.keys(scNcaaLookup).filter(k=>k.length>=4).sort((a,b)=>b.length-a.length);
+  const match=ordered.find(k=>key.startsWith(k+' '));
+  if(match)id=scNcaaLookup[match];
+ }
+ if(!id)return '';
+ // Explicit college team names are allowed; avoid short generic mascots in other leagues.
+ if(!isCollege && !/(?:state|university|college|tech|ucla|usc|lsu|byu|tcu|smu|unlv|utsa|uab|fau|fiu|uconn|umass|unc|duke|clemson|stanford|rutgers|auburn|baylor|purdue|tulane|temple|notre dame|ole miss|penn state|ohio state|michigan|alabama|georgia|florida|tennessee|oklahoma|oregon|washington|wisconsin|iowa|kansas|kentucky|missouri|arkansas|maryland|indiana|illinois|nebraska|syracuse|virginia|colorado|arizona|utah|houston|memphis|navy|army|rice|tulsa|wyoming|hawaii|buffalo|toledo|akron|delaware|liberty|marshall|louisville|pittsburgh|northwestern|vanderbilt|south carolina|north carolina|texas|miami)/.test(key))return '';
+ return 'https://a.espncdn.com/i/teamlogos/ncaa/500/'+id+'.png';
+}
+
 function scResolveLogo(team,league){
+ const ncaa=scNcaaLogo(team,league);if(ncaa)return {source:"ncaa",league:"college",urls:[ncaa]};
+ const national=scNationalLogo(team,league);if(national)return {source:"national-team",league:"international",urls:[national]};
  const mx=scLigaMxCrest(team,league);if(mx)return {source:'liga-mx',league:'liga_mx',urls:[mx]};
  const nfl=scNflCode(team,league);
  if(nfl)return {source:'nfl',league:'nfl',urls:[SC_NFL_LOGO_BASE+encodeURIComponent(nfl==='JAC'?'JAX':nfl)+'.png',...(nfl==='JAC'?[SC_NFL_LOGO_BASE+'JAC.png']:[])]};
