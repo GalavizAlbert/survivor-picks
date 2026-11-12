@@ -633,8 +633,15 @@ async function submitPickViaDiscord(payload){
    method:'POST',headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+config.key},
    body:JSON.stringify({mode:'submit_pick',token,...payload})
   });
-  const result=await response.json().catch(()=>null);
-  if(!response.ok||result?.ok!==true)throw Error(result?.error||'Error HTTP '+response.status);
+  const responseText=await response.text();
+  let result=null;
+  try{result=JSON.parse(responseText)}catch(_e){}
+  if(!response.ok||result?.ok!==true){
+   const detail=result?.error||result?.message||result?.msg||(responseText&&!responseText.trim().startsWith('<')?responseText.slice(0,240):'');
+   const hint=response.status===405?'La función survivor-discord rechazó POST. Revisa su despliegue y que admita POST/OPTIONS en Supabase.':response.status===404?'La función survivor-discord no está disponible en esta URL.':response.status===401||response.status===403?'Verifica la autorización de la función.':'';
+   console.error('[Survivor] submit_pick failed',{endpoint:'survivor-discord',method:'POST',status:response.status,statusText:response.statusText,detail,requestId:response.headers.get('x-request-id')||response.headers.get('sb-request-id')});
+   throw Error(['survivor-discord · HTTP '+response.status,detail,hint].filter(Boolean).join(' · '));
+  }
   await refresh();
   return true;
  }catch(e){alert('No se completó el envío: '+e.message);await refresh().catch(()=>{});return false}
