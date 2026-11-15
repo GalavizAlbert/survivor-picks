@@ -1316,6 +1316,21 @@ async function prepareDiscordAttachment(file){return {filename:file.name.replace
 function reset(){editing=null;existingPickImageUrl='';$('pickForm').reset();updatePickImagePreview();$('formTitle').textContent='＋ Registrar nuevo pick';$('submitBtn').textContent='Guardar pick';$('cancelEdit').hidden=true;$('playerPin').required=false;$('formWeek').value=$('week').value;updatePlayerEligibility();refreshDeadlineLock()}
 $('toggleLock').onclick=async()=>{const code=$('adminCode').value;if(!code){alert('Ingresa el código de administrador.');return}if(await mutate('lock',{code,locked:!pickLocked}))$('adminCode').value=''};
 $('pickForm').onsubmit=async e=>{e.preventDefault();if((pickLocked||deadlineClosed(Number($('formWeek').value)))&&!adminOverride()){alert('🔒 Plazo cerrado. Solo el administrador puede registrar o editar picks.');return;}updatePlayerEligibility();if($('player').selectedOptions[0]?.disabled&&!$('editAdminCode').value.trim()){alert('Este participante fue eliminado y no puede registrar más picks.');return}const o={id:editing||crypto.randomUUID(),player:$('player').value,match:$('match').value.trim(),league:$('league').value,gameDate:$('gameDate').value,selection:$('selection').value.trim(),explanation:$('explanation').value.trim(),odds:$('odds').value.trim(),oddsFormat:$('oddsFormat').value,status:editing?(records.find(r=>r.id===editing)?.status||'pending'):'pending',week:Number($('formWeek').value)};if(!eligibleGameDate(o.gameDate,o.week)){alert('Fecha de partido no permitida. Solo viernes, sábado o domingo de la Semana '+o.week+': '+eligibleGameRange(o.week)+'.');return}if(!Number.isFinite(dec(o.odds,o.oddsFormat))||dec(o.odds,o.oddsFormat)<minimum(o.week)){alert('Momio inválido o inferior al mínimo '+fmt(minimum(o.week)));return}const duplicate=extraDuplicate(o);if(duplicate){alert('Evento duplicado: '+duplicate.player+' ya registró este partido. Elige otro evento.');return}const adminCode=$('editAdminCode').value.trim();const deadline=extraDeadline(o.week);if(deadlineClosed(o.week)&&!/^[0-9]{8}$/.test(adminCode)){alert('La jornada está fuera del horario permitido (lunes 07:00 a viernes 00:00 CDMX). Para registrar o editar después del cierre, ingresa el código de administrador de 8 dígitos.');return}if(editing&&!adminCode&&o.player!==records.find(r=>r.id===editing)?.player){alert('Para cambiar el dueño del pick necesitas el PIN de administrador.');return}if(!adminCode&&!/^[0-9]{4}$/.test($('playerPin').value)){alert('Ingresa tu PIN de 4 dígitos o el código de administrador.');return}if(adminCode&&!/^[0-9]{8}$/.test(adminCode)){alert('El código de administrador debe tener 8 dígitos.');return}const chosenImage=$('pickImage').files?.[0];const payload={pick:o,pin:$('playerPin').value,code:adminCode};if(chosenImage){if(editing){alert('Las imágenes se adjuntan únicamente a las notificaciones de nuevos picks, no a las ediciones.');return}try{$('pickImageStatus').textContent='Preparando imagen para Discord…';payload.discord_attachment=await prepareDiscordAttachment(chosenImage)}catch(err){$('pickImageStatus').textContent='Error: '+err.message;alert(err.message);return}}if(await submitPickViaDiscord(payload)){ $('week').value=String(o.week);reset();render()}};
+// Discord result notifications: sent only after Supabase confirms a real status change.
+async function notifyDiscordResult(record, previousStatus, newStatus, adminCode){
+ if(!record || !['win','loss'].includes(newStatus) || previousStatus===newStatus)return;
+ const token=window.survivorAccessToken();
+ if(!token)throw Error('Sesión caducada para notificación Discord');
+ const response=await fetch(config.url.replace(/\/$/,'')+'/functions/v1/survivor-discord',{
+  method:'POST',
+  headers:{'Content-Type':'application/json',apikey:config.key,Authorization:'Bearer '+config.key},
+  body:JSON.stringify({mode:'result_changed',token,pick_id:record.id,previous_status:previousStatus,status:newStatus,code:adminCode,
+   player:record.player,week:record.week,match:record.match,selection:record.selection,
+   odds:record.odds,odds_format:record.oddsFormat,league:record.league,game_date:record.gameDate})
+ });
+ const raw=await response.text();let data={};try{data=JSON.parse(raw)}catch(_e){}
+ if(!response.ok||data.ok!==true)throw Error(data.error||data.message||'HTTP '+response.status+' '+raw.slice(0,120));
+}
 async function handleStatus(e){
  const id=e.target.dataset.status;if(!id)return;
  const record=records.find(r=>String(r.id)===String(id));
@@ -1325,7 +1340,18 @@ async function handleStatus(e){
  if(!code){render();return;}
  if(!/^[0-9]{8}$/.test(code)){alert('Ingresa un código de administrador de 8 dígitos.');render();return;}
  // El servidor DEBE verificar p_payload.code en la acción 'status'.
- await mutate('status',{id,status:requested,code});
+ if(record && record.status===requested)return;
+ const previousStatus=record?.status;
+ if(!['win','loss'].includes(requested)){await mutate('status',{id,status:requested,code});return;}
+ try {
+  await notifyDiscordResult(record,previousStatus,requested,code);
+  await refresh();
+ } catch(err) {
+  console.error('[Survivor] Result update:',err);
+  await refresh().catch(()=>{});
+  alert('No se pudo confirmar el cambio o la notificación: '+err.message);
+ }
+
 }
 async function handleAction(e){const del=e.target.dataset.delete,edit=e.target.dataset.edit;if(!connected){alert('Sin conexión. Intenta nuevamente.');return;}if(del){const credential=window.prompt('PIN personal (4 dígitos) o código de administrador (8 dígitos) para eliminar:');if(credential&&/^(?:[0-9]{4}|[0-9]{8})$/.test(credential)&&confirm('¿Eliminar este pick?'))await mutate('delete',{id:del,...(credential.length===8?{code:credential}:{pin:credential})});return}if(edit){const r=records.find(x=>x.id===edit);if(!r)return;editing=edit;$('playerPin').value='';$('editAdminCode').value='';for(const k of ['player','match','league','gameDate','selection','odds','oddsFormat'])$(k).value=r[k];$('explanation').value=r.explanation||'';existingPickImageUrl='';$('pickImage').value='';updatePickImagePreview();$('formWeek').value=r.week;$('formTitle').textContent='✎ Editar pick · PIN personal del dueño o PIN administrador';$('submitBtn').textContent='Actualizar pick';$('cancelEdit').hidden=false;updatePlayerEligibility();$('playerPin').required=false;$('pickForm').scrollIntoView({behavior:'smooth'})}}
 for(const id of ['pickRows','schedule']){$(id).addEventListener('change',handleStatus);$(id).addEventListener('click',handleAction)}
