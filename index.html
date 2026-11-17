@@ -1367,21 +1367,33 @@ const SC_LIFE_MUSHROOM="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CA
 
 // NFL player photos: static catalog first, ESPN roster fallback, browser cache.
 const NFL_TEAMS=['ari','atl','bal','buf','car','chi','cin','cle','dal','den','det','gb','hou','ind','jax','kc','lv','lac','lar','mia','min','ne','no','nyg','nyj','phi','pit','sf','sea','tb','ten','wsh'];
-const NFL_PHOTO_SEED={'cooper kupp':{id:'2977187',name:'Cooper Kupp'}};
+const NFL_PHOTO_SEED={'cooper kupp':{id:'2977187',name:'Cooper Kupp'},'christian mccaffrey':{id:'3117251',name:'Christian McCaffrey'}};
 const nflPhotoIndex=new Map(); // Let nflAddAthlete register complete records, including photo URL.
 let nflCatalogPromise=null;
 const nflNormalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,'').replace(/[^a-zA-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
 function athleteFromPick(selection,league){
  if(!/nfl|football americano|fútbol americano/i.test(String(league||'')))return null;
  const raw=String(selection||'').trim();
- // Support: Cooper Kupp +3.5 Rec, Cooper Kupp over 3.5 receptions,
- // Cooper Kupp 4+ receptions, Cooper Kupp - Más de 3.5 recepciones.
- const stat=/(?:rec(?:eptions?|epciones?|eiving)?|recepciones?|yards?|yds?|rush(?:ing)?|pass(?:ing)?|completions?|attempts?|tds?|touchdowns?|catches|carries|interceptions?|tackles?|sacks?|targets?|pases?|acarreos?|anotaciones?)\b/i;
+ const stat=/(?:rec(?:eptions?|epciones?|eiving)?|recepciones?|yards?|yds?|rush(?:ing)?|pass(?:ing)?|completions?|attempts?|tds?|touchdowns?|catches|carries|interceptions?|fumbles?|fumbles?\s+lost|turnovers?|tackles?|sacks?|targets?|pases?|acarreos?|anotaciones?|anytime|anota|scorer)\b/i;
  if(!stat.test(raw))return null;
- const match=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*){1,3})\s+(?:(?:[-–—:]\s*)?(?:over|under|más de|menos de|mas de)\s+)?[+\-]?\d/i);
- if(match)return match[1].trim();
- const alternate=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*){1,3})\s*[-–—:]\s*(?:over|under|más de|menos de|mas de)\s+\d/i);
- return alternate?alternate[1].trim():null;
+ // Prefer an exact known roster name, including first-initial variants.
+ const normalized=nflNormalize(raw);
+ const entries=[...new Set(nflPhotoIndex.values())].sort((a,b)=>b.name.length-a.name.length);
+ for(const entry of entries){
+  const name=nflNormalize(entry.name);
+  const pieces=name.split(' ');
+  const initial=pieces.length>1?pieces[0][0]+' '+pieces.slice(1).join(' '):'';
+  if(normalized===name||normalized.startsWith(name+' ')||normalized.endsWith(' '+name)||
+     (initial&&(normalized===initial||normalized.startsWith(initial+' ')||normalized.endsWith(' '+initial))))return entry.name;
+ }
+ const beginning=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*){1,3})\s+(?:(?:[-–—:]\s*)?(?:over|under|más de|menos de|mas de)\s+)?[+\-]?\d/i);
+ if(beginning)return beginning[1].trim();
+ const separator=raw.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’\-]*){1,3})\s*[-–—:]\s*(?:over|under|más de|menos de|mas de)\s+\d/i);
+ if(separator)return separator[1].trim();
+ const anytime=raw.match(/^(.+?)\s+(?:anytime\s+(?:td|touchdown)|to score(?:\s+a)?\s+touchdown|anota\s+td)\b/i);
+ if(anytime)return anytime[1].trim();
+ const suffix=raw.match(/(?:over|under|más de|menos de|mas de)\s+[+\-]?\d+(?:\.\d+)?\s+(?:rushing|receiving|passing|receptions?|yards?|yds?|touchdowns?|tds?)\s+(.+)$/i);
+ return suffix?suffix[1].trim():null;
 }
 function nflAddAthlete(a,team){
  if(!a||!a.id||!(a.fullName||a.displayName||a.name))return;
@@ -1390,7 +1402,7 @@ function nflAddAthlete(a,team){
  for(const alias of [name,a.displayName,a.shortName]){const key=nflNormalize(alias);if(key)nflPhotoIndex.set(key,entry)}
 }
 // Built-in entry: works even if the browser blocks local JSON reads.
-nflAddAthlete({id:'2977187',fullName:'Cooper Kupp',displayName:'Cooper Kupp',headshot:{href:'https://a.espncdn.com/i/headshots/nfl/players/full/2977187.png'}},'');
+for(const seed of Object.values(NFL_PHOTO_SEED))nflAddAthlete({id:seed.id,fullName:seed.name,displayName:seed.name},'');
 async function nflLoadCatalog(){
  if(nflCatalogPromise)return nflCatalogPromise;
  nflCatalogPromise=(async()=>{
@@ -1412,7 +1424,7 @@ async function nflLoadRosters(){
   async function worker(){while(next<NFL_TEAMS.length){const team=NFL_TEAMS[next++];try{
    const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/${team}/roster`);
    if(!r.ok)continue;const data=await r.json();
-   for(const group of data.athletes||[]){for(const a of (Array.isArray(group)?group:group.items||group.athletes||[])){
+   for(const group of data.athletes||[]){for(const item of (Array.isArray(group)?group:group.items||group.athletes||[])){const a=item.athlete||item;
     if(a.id&&(a.fullName||a.displayName)){const entry={id:String(a.id),fullName:a.fullName||a.displayName,displayName:a.displayName,shortName:a.shortName,team,headshot:a.headshot};players.push(entry);nflAddAthlete(entry,team)}
    }}
   }catch(_e){}}}
@@ -1423,7 +1435,7 @@ async function nflLoadRosters(){
 }
 function nflFind(name){
  const key=nflNormalize(name);if(nflPhotoIndex.has(key))return nflPhotoIndex.get(key);
- const matches=[...new Set(nflPhotoIndex.values())].filter(a=>nflNormalize(a.name).endsWith(' '+key));
+ const matches=[...new Set(nflPhotoIndex.values())].filter(a=>{const full=nflNormalize(a.name);const parts=full.split(' ');return full.endsWith(' '+key)||(parts.length>1&&key===parts[0][0]+' '+parts.slice(1).join(' '));});
  return matches.length===1?matches[0]:null;
 }
 function athletePropMarkup(selection,league){
@@ -1444,7 +1456,7 @@ async function loadAthletePhotos(){
   nodes=[...document.querySelectorAll('.athlete-prop[data-athlete-name]')];
   for(const node of nodes){const entry=nflFind(node.dataset.athleteName);const img=node.querySelector('img');if(!img)continue;
    if(entry){const url=entry.photo||`https://a.espncdn.com/i/headshots/nfl/players/full/${encodeURIComponent(entry.id)}.png`;if(img.getAttribute("src")!==url){img.onerror=()=>{img.hidden=true;node.querySelector(".athlete-photo-fallback")?.removeAttribute("hidden")};img.onload=()=>{img.hidden=false;node.querySelector(".athlete-photo-fallback")?.setAttribute("hidden","")};img.src=url;}}
-   else {img.hidden=true;console.warn('[NFL Photos] Player not found:',node.dataset.athleteName)}
+   else {img.hidden=true;node.querySelector(".athlete-photo-fallback")?.removeAttribute("hidden");console.warn('[NFL Photos] Player not found:',node.dataset.athleteName)}
   }
  }finally{nflPhotosUpdating=false;}
 }
