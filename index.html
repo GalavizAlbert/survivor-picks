@@ -2114,12 +2114,46 @@ $p('openPlaydoitParlay')?.addEventListener('click',open);$p('closePlaydoit').add
 </style>
 <div class="luis-meme-overlay" id="luisMemeOverlay" hidden><div class="luis-meme-dialog" role="dialog" aria-modal="true" aria-labelledby="luisMemeTitle"><button type="button" class="luis-meme-close" data-close-luis-meme aria-label="Cerrar meme">×</button><h2 id="luisMemeTitle">🕷️ El multiverso de los Luises</h2><iframe class="luis-meme-gif" title="GIF de los tres Spider-Man señalándose" data-src="https://tenor.com/embed/24146818" loading="lazy" allowfullscreen></iframe><p class="luis-meme-caption">😂 ¡Los Luises estamos todos tontos!</p></div></div>
 <script id="luis-meme-script">(()=>{const overlay=document.getElementById('luisMemeOverlay');const frame=overlay.querySelector('iframe');let focus=null;const close=()=>{overlay.hidden=true;frame.removeAttribute('src');focus?.focus()};document.addEventListener('click',e=>{const button=e.target.closest('[data-luis-meme]');if(button){e.preventDefault();e.stopPropagation();focus=button;frame.src=frame.dataset.src;overlay.hidden=false;overlay.querySelector('[data-close-luis-meme]').focus();return}if(e.target.closest('[data-close-luis-meme]')||e.target===overlay)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!overlay.hidden)close()})})();</script>
-<script id="panteon-sound-v4">
-(()=>{const btn=document.getElementById('panteonAudio');if(!btn)return;
-let ctx=null,voices=[],noise=null,playing=false;
-function stop(){voices.forEach(x=>{try{x.stop()}catch(e){}});voices=[];if(noise){try{noise.stop()}catch(e){}noise=null}if(ctx){ctx.close();ctx=null}playing=false;btn.textContent='🔊 Activar sonido tenebroso';btn.setAttribute('aria-pressed','false')}
-function start(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC){btn.textContent='Audio no disponible';return}ctx=new AC();ctx.resume();const master=ctx.createGain();master.gain.value=.13;master.connect(ctx.destination);
-[55,82.41,110.2].forEach((freq,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),l=ctx.createOscillator(),lg=ctx.createGain();o.type=i===1?'triangle':'sine';o.frequency.value=freq;g.gain.value=.13; l.frequency.value=.07+i*.025;lg.gain.value=3+i*2;l.connect(lg);lg.connect(o.frequency);o.connect(g);g.connect(master);o.start();l.start();voices.push(o,l)});
-const sr=ctx.sampleRate,buf=ctx.createBuffer(1,sr*3,sr),a=buf.getChannelData(0);let v=0;for(let i=0;i<a.length;i++){v=(v+(.025*(Math.random()*2-1)))/1.025;a[i]=v}noise=ctx.createBufferSource();noise.buffer=buf;noise.loop=true;const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=310;const ng=ctx.createGain();ng.gain.value=.2;noise.connect(lp);lp.connect(ng);ng.connect(master);noise.start();playing=true;btn.textContent='🔇 Silenciar cementerio';btn.setAttribute('aria-pressed','true')}
-btn.addEventListener('click',()=>{if(playing)stop();else start()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)stop()});})();
+<script id="panteon-sound-v5">
+(()=>{
+ const btn=document.getElementById('panteonAudio');if(!btn)return;
+ let ctx=null, active=false, sources=[], timers=[], output=null;
+ function track(o){sources.push(o);return o}
+ function stop(){active=false;timers.forEach(clearTimeout);timers=[];if(ctx){try{ctx.close()}catch(e){}}ctx=null;sources=[];btn.textContent='🔊 Activar ambiente tenebroso';btn.setAttribute('aria-pressed','false')}
+ function schedule(fn,ms){timers.push(setTimeout(()=>{if(active)fn()},ms))}
+ function start(){
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){btn.textContent='Audio no disponible';return}
+  ctx=new AC();ctx.resume();active=true;
+  output=ctx.createGain();output.gain.value=.48;
+  const compressor=ctx.createDynamicsCompressor();compressor.threshold.value=-24;compressor.ratio.value=3;
+  output.connect(compressor);compressor.connect(ctx.destination);
+  // Wind: wide, softly filtered pink-ish noise, with slow natural swells.
+  const length=ctx.sampleRate*5,buffer=ctx.createBuffer(2,length,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){let last=0;const data=buffer.getChannelData(ch);for(let i=0;i<length;i++){last=(last*.985)+(Math.random()*2-1)*.015;data[i]=last*3}}
+  const wind=track(ctx.createBufferSource());wind.buffer=buffer;wind.loop=true;
+  const hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=90;
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=850;
+  const windGain=ctx.createGain();windGain.gain.value=.12;
+  const swell=track(ctx.createOscillator());swell.frequency.value=.085;
+  const depth=ctx.createGain();depth.gain.value=.055;swell.connect(depth);depth.connect(windGain.gain);
+  wind.connect(hp);hp.connect(lp);lp.connect(windGain);windGain.connect(output);wind.start();swell.start();
+  // Distant low atmospheric pad, not a loud repeating beep.
+  [73.42,110].forEach((freq,i)=>{const osc=track(ctx.createOscillator());osc.type='sine';osc.frequency.value=freq;const gain=ctx.createGain();gain.gain.value=i?.012:.018;osc.connect(gain);gain.connect(output);osc.start()});
+  // Distant owl-like two-note hoot, gently faded in and out.
+  function owl(){if(!active)return;const now=ctx.currentTime;
+   [0,.37].forEach((offset,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=750;osc.type='sine';osc.frequency.setValueAtTime(i?365:410,now+offset);osc.frequency.exponentialRampToValueAtTime(i?295:335,now+offset+.38);gain.gain.setValueAtTime(.0001,now+offset);gain.gain.exponentialRampToValueAtTime(.045,now+offset+.09);gain.gain.exponentialRampToValueAtTime(.0001,now+offset+.6);osc.connect(filter);filter.connect(gain);gain.connect(output);osc.start(now+offset);osc.stop(now+offset+.65)});
+   schedule(owl,10500+Math.random()*11500)
+  }
+  // Soft distant metallic chime with a long decay.
+  function chime(){if(!active)return;const now=ctx.currentTime;
+   [440,660,880].forEach((freq,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.018/(i+1),now+.02);gain.gain.exponentialRampToValueAtTime(.0001,now+3.8);osc.connect(gain);gain.connect(output);osc.start(now);osc.stop(now+3.9)});
+   schedule(chime,19000+Math.random()*18000)
+  }
+  schedule(owl,4000);schedule(chime,12000);
+  btn.textContent='🔇 Silenciar ambiente';btn.setAttribute('aria-pressed','true');
+ }
+ btn.addEventListener('click',()=>active?stop():start());
+ document.addEventListener('visibilitychange',()=>{if(document.hidden&&active)stop()});
+})();
 </script></body></html>
